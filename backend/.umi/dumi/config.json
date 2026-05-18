@@ -1,0 +1,28 @@
+{
+  "menus": {
+    "en-US": {
+      "*": [
+        {
+          "path": "/~docs",
+          "meta": {
+            "order": null
+          }
+        }
+      ]
+    }
+  },
+  "locales": [
+    {
+      "name": "en-US",
+      "label": "English"
+    }
+  ],
+  "navs": {},
+  "title": "ant-design-pro",
+  "mode": "doc",
+  "repository": {
+    "url": "",
+    "branch": "master"
+  },
+  "theme": {}
+}
