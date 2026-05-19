@@ -1,6 +1,10 @@
 // @ts-nocheck
 /**
+<<<<<<< HEAD
+ * Base on https://github.com/umijs/D:/FINAL WEB/RIPT1307-04-2026-N8-KTHP-main/frontend/node_modules/umi-request
+=======
  * Base on https://github.com/umijs/D:/BTLCK_NHOM8/frontend/node_modules/umi-request
+>>>>>>> 609875ffb6e777d3fd382ae675365e4fc0e3792e
  */
 import {
   extend,
@@ -13,7 +17,11 @@ import {
   RequestResponse,
   RequestInterceptor,
   ResponseInterceptor,
+<<<<<<< HEAD
+} from 'D:/FINAL WEB/RIPT1307-04-2026-N8-KTHP-main/frontend/node_modules/umi-request';
+=======
 } from 'D:/BTLCK_NHOM8/frontend/node_modules/umi-request';
+>>>>>>> 609875ffb6e777d3fd382ae675365e4fc0e3792e
 // @ts-ignore
 
 import { ApplyPluginsType } from 'umi';
@@ -22,7 +30,11 @@ import { history, plugin } from '../core/umiExports';
 // decoupling with antd UI library, you can using `alias` modify the ui methods
 // @ts-ignore
 import { message, notification } from '@umijs/plugin-request/lib/ui';
+<<<<<<< HEAD
+import useUmiRequest, { UseRequestProvider } from 'D:/FINAL WEB/RIPT1307-04-2026-N8-KTHP-main/frontend/node_modules/@ahooksjs/use-request';
+=======
 import useUmiRequest, { UseRequestProvider } from 'D:/BTLCK_NHOM8/frontend/node_modules/@ahooksjs/use-request';
+>>>>>>> 609875ffb6e777d3fd382ae675365e4fc0e3792e
 import {
   BaseOptions,
   BasePaginatedOptions,
@@ -38,7 +50,11 @@ import {
   PaginatedOptionsWithFormat,
   PaginatedParams,
   PaginatedResult,
+<<<<<<< HEAD
+} from 'D:/FINAL WEB/RIPT1307-04-2026-N8-KTHP-main/frontend/node_modules/@ahooksjs/use-request/lib/types';
+=======
 } from 'D:/BTLCK_NHOM8/frontend/node_modules/@ahooksjs/use-request/lib/types';
+>>>>>>> 609875ffb6e777d3fd382ae675365e4fc0e3792e
 
 type ResultWithData<T = any> = { data?: T; [key: string]: any };
 

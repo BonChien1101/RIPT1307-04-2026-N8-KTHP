@@ -1,6 +1,10 @@
 // @ts-nocheck
 import React from 'react';
+<<<<<<< HEAD
+import initialState from 'D:/FINAL WEB/RIPT1307-04-2026-N8-KTHP-main/frontend/src/.umi/plugin-initial-state/models/initialState';
+=======
 import initialState from 'D:/BTLCK_NHOM8/frontend/src/.umi/plugin-initial-state/models/initialState';
+>>>>>>> 609875ffb6e777d3fd382ae675365e4fc0e3792e
 
 // @ts-ignore
 import Dispatcher from './helpers/dispatcher';
