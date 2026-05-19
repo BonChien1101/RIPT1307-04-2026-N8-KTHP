@@ -1,0 +1,25 @@
+.login-page {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .login-card {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+
+    :global {
+      .ant-card-head {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 8px 8px 0 0;
+
+        .ant-card-head-title {
+          color: white;
+          font-size: 18px;
+          font-weight: bold;
+        }
+      }
+    }
+  }
+}
