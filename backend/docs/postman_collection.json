@@ -1,0 +1,216 @@
+{
+  "info": {
+    "name": "CLB Equipment Borrowing API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"123456\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Equipments",
+      "item": [
+        {
+          "name": "List equipments",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/equipments?onlyAvailable=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "equipments"],
+              "query": [
+                { "key": "onlyAvailable", "value": "true" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get equipment detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/equipments/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "equipments", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Borrow",
+      "item": [
+        {
+          "name": "Create borrow request (student)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/borrow-requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "borrow-requests"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"borrow_date\": \"2026-05-19\",\n  \"expected_return_date\": \"2026-05-26\",\n  \"note\": \"Mượn để làm bài thuyết trình\",\n  \"items\": [\n    { \"equipment_id\": 1, \"quantity\": 1 },\n    { \"equipment_id\": 2, \"quantity\": 2 }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "My borrow history (student)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/borrow-requests/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "borrow-requests", "me"]
+            }
+          }
+        },
+        {
+          "name": "List borrow requests (admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/borrow-requests?status=pending",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "borrow-requests"],
+              "query": [
+                { "key": "status", "value": "pending" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Approve request (admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/borrow-requests/1/approve",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "borrow-requests", "1", "approve"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Duyệt\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "List notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications"]
+            }
+          }
+        },
+        {
+          "name": "Mark read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/1/read",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications", "1", "read"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Statistics",
+      "item": [
+        {
+          "name": "Top borrowed (admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/statistics/top-borrowed?month=5&year=2026&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "statistics", "top-borrowed"],
+              "query": [
+                { "key": "month", "value": "5" },
+                { "key": "year", "value": "2026" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000" },
+    { "key": "token", "value": "" }
+  ]
+}
