@@ -30,8 +30,10 @@ import {
   SaveOutlined,
   BarChartOutlined,
   BgColorsOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'umi';
+import UserManagement from './UserManagement/index';
 import './styles.less';
 
 const { Header, Content, Sider } = Layout;
@@ -420,6 +422,9 @@ const Admin: React.FC = () => {
             <Menu.Item key="equipment" icon={<BgColorsOutlined />}>
               Quản Lý Thiết Bị
             </Menu.Item>
+            <Menu.Item key="users" icon={<TeamOutlined />}>
+              Quản Lý Người Dùng
+            </Menu.Item>
           </Menu>
         </Sider>
 
@@ -494,6 +499,8 @@ const Admin: React.FC = () => {
                 />
               </Card>
             )}
+
+            {activeTab === 'users' && <UserManagement />}
           </Content>
         </Layout>
       </Layout>

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'umi';
-import 'antd/dist/reset.css';
+import 'antd/dist/antd.css';
 
 export async function getInitialState() {
   // Get user from localStorage

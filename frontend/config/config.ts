@@ -30,19 +30,19 @@ export default defineConfig({
     {
       path: '/',
       name: 'Đăng nhập',
-      component: './pages/Login',
+      component: '@/pages/Login',
       layout: false,
     },
     {
       path: '/student',
       name: 'Sinh viên',
-      component: './pages/Student',
+      component: '@/pages/Student',
       access: 'canStudent',
     },
     {
       path: '/admin',
       name: 'Quản trị viên',
-      component: './pages/Admin',
+      component: '@/pages/Admin',
       access: 'canAdmin',
     },
   ],
