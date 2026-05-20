@@ -23,7 +23,7 @@ import {
   EyeOutlined,
   LockOutlined,
 } from '@ant-design/icons';
-import { useNavigate } from 'umi';
+import { history } from 'umi';
 import './styles.less';
 
 interface User {
@@ -42,7 +42,6 @@ const UserManagement: React.FC = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
-  const navigate = useNavigate();
   const [formLoading, setFormLoading] = useState(false);
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -54,13 +53,13 @@ const UserManagement: React.FC = () => {
   useEffect(() => {
     const user = localStorage.getItem('user');
     if (!user) {
-      navigate('/');
+      history.push('/');
       return;
     }
 
     const userData = JSON.parse(user);
     if (userData.role !== 'admin') {
-      navigate('/');
+      history.push('/');
       return;
     }
 

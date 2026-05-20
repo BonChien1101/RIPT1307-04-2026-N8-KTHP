@@ -1,38 +1,21 @@
-import React, { useEffect } from 'react';
-import { useLocation, useNavigate } from 'umi';
+﻿import React from 'react';
 import 'antd/dist/antd.css';
 
 export async function getInitialState() {
-  // Get user from localStorage
-  const token = localStorage.getItem('token');
-  const userStr = localStorage.getItem('user');
-  
-  if (token && userStr) {
-    try {
+  try {
+    const token = localStorage.getItem('token');
+    const userStr = localStorage.getItem('user');
+    
+    if (token && userStr) {
       const user = JSON.parse(userStr);
-      return {
-        user,
-        token,
-      };
-    } catch (error) {
-      console.error('Error parsing user data:', error);
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      return { user, token };
     }
+  } catch (error) {
+    console.error('getInitialState error:', error);
   }
-
   return undefined;
 }
 
-export const layout = () => {
-  return {
-    logo: '📦',
-    name: 'Quản Lý Mượn Đồ Dùng',
-    locale: true,
-    layout: 'side',
-  };
-};
+// UmiJS requires a default export
+export default () => <></>;
 
-const App: React.FC = () => {
-  return null;
-};

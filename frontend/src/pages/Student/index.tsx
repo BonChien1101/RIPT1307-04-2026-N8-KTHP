@@ -27,7 +27,7 @@ import {
   ClockCircleOutlined,
   ExclamationCircleOutlined,
 } from '@ant-design/icons';
-import { useNavigate } from 'umi';
+import { history } from 'umi';
 import './styles.less';
 
 const { Header, Content, Sider } = Layout;
@@ -59,7 +59,6 @@ const Student: React.FC = () => {
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
@@ -67,7 +66,7 @@ const Student: React.FC = () => {
     if (userData) {
       setUser(JSON.parse(userData));
     } else {
-      navigate('/');
+      history.push('/');
     }
 
     fetchEquipment();
@@ -155,7 +154,7 @@ const Student: React.FC = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     message.success('Đã đăng xuất!');
-    navigate('/');
+    history.push('/');
     window.location.reload();
   };
 

@@ -32,7 +32,7 @@ import {
   BgColorsOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
-import { useNavigate } from 'umi';
+import { history } from 'umi';
 import UserManagement from './UserManagement/index';
 import './styles.less';
 
@@ -67,7 +67,6 @@ const Admin: React.FC = () => {
   const [equipmentForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
-  const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   const [stats, setStats] = useState({
     totalEquipment: 0,
@@ -80,11 +79,11 @@ const Admin: React.FC = () => {
     if (userData) {
       const parsedUser = JSON.parse(userData);
       if (parsedUser.role !== 'admin') {
-        navigate('/');
+        history.push('/');
       }
       setUser(parsedUser);
     } else {
-      navigate('/');
+      history.push('/');
     }
 
     fetchBorrowRequests();
@@ -254,7 +253,7 @@ const Admin: React.FC = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     message.success('Đã đăng xuất!');
-    navigate('/');
+    history.push('/');
     window.location.reload();
   };
 

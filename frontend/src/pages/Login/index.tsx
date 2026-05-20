@@ -1,24 +1,19 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, Card, Row, Col, message, Select } from 'antd';
+import { Form, Input, Button, Card, Row, Col, message } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
-import { useNavigate } from 'umi';
+import { history } from 'umi';
 import './styles.less';
 
 const Login: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [userType, setUserType] = useState<'student' | 'admin'>('student');
-  const navigate = useNavigate();
 
   const handleLogin = async (values: any) => {
     setLoading(true);
     try {
-      // Call API login endpoint
       const response = await fetch('http://localhost:5000/api/auth/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: values.email,
           password: values.password,
@@ -27,27 +22,21 @@ const Login: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
-        
-        // Store token in localStorage
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
-
         message.success('Đăng nhập thành công!');
-        
-        // Redirect based on user role
-        if (data.user.role === 'admin') {
-          navigate('/admin');
-        } else {
-          navigate('/student');
-        }
 
-        // Reload to update initialState
+        if (data.user.role === 'admin') {
+          history.push('/admin');
+        } else {
+          history.push('/student');
+        }
         window.location.reload();
       } else {
-        message.error('Tên đăng nhập hoặc mật khẩu không đúng!');
+        message.error('Email hoặc mật khẩu không đúng!');
       }
     } catch (error) {
-      message.error('Lỗi kết nối đến server!');
+      message.error('Lỗi kết nối server!');
       console.error('Login error:', error);
     } finally {
       setLoading(false);
@@ -69,20 +58,6 @@ const Login: React.FC = () => {
               onFinish={handleLogin}
               autoComplete="off"
             >
-              <Form.Item
-                label="Loại Tài Khoản"
-                name="userType"
-                initialValue="student"
-              >
-                <Select
-                  onChange={(value) => setUserType(value)}
-                  options={[
-                    { label: 'Sinh Viên', value: 'student' },
-                    { label: 'Quản Trị Viên', value: 'admin' },
-                  ]}
-                />
-              </Form.Item>
-
               <Form.Item
                 label="Email"
                 name="email"
