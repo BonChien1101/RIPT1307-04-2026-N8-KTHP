@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 
-// JWT HS256 (tối giản, không dùng thư viện ngoài)
+// JWT HS256 
 
 const b64url = (input) => {
 	return Buffer.from(input)
