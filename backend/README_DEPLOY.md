@@ -10,8 +10,23 @@ Backend này chạy bằng Node/Express và cần MySQL.
 - `DB_NAME`
 - `DB_USER`
 - `DB_PASSWORD`
+- `DB_SSL` (tuỳ chọn)
+- `DB_CA_CERT` (tuỳ chọn)
 - `JWT_SECRET`
 - `CORS_ORIGINS` (khuyến nghị khi deploy)
+
+### Aiven MySQL (ssl-mode=REQUIRED)
+
+Nếu bạn dùng Aiven MySQL và thấy `ssl-mode=REQUIRED` trong “Connection information”:
+
+- set `DB_SSL=true`
+- (khuyến nghị) copy nội dung **CA certificate** (PEM) vào `DB_CA_CERT`
+
+Render hỗ trợ env multiline. Nếu bạn paste PEM nhiều dòng mà bị lỗi, hãy giữ nguyên đúng format:
+
+- `-----BEGIN CERTIFICATE-----`
+- ...
+- `-----END CERTIFICATE-----`
 
 `CORS_ORIGINS` là danh sách domain cách nhau bằng dấu phẩy. Ví dụ:
 
@@ -39,4 +54,10 @@ Sau khi deploy xong, lấy API base URL:
 
 - `https://<your-backend-domain>/api`
 
-Gửi URL này cho team frontend cấu hình biến môi trường trên Netlify.
+
+## Import schema lên DB online
+
+Với DB managed (Aiven/...), thường bạn **không có quyền** `CREATE DATABASE`.
+
+- Hãy chọn đúng database (ví dụ `defaultdb`) rồi chạy file `backend/schema.sql`.
+- File `schema.sql` trong repo đã bỏ phần `CREATE DATABASE/USE` để chạy được trên DB managed.
