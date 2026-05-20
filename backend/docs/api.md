@@ -266,8 +266,22 @@ Tài liệu này để **frontend và backend làm song song**. FE chỉ cần b
   ]
 }
 ```
+## 7) Deploy / Production Config
+Backend Production URL
+
+Production API base URL:
+
+https://ript1307-04-2026-n8-kthp.onrender.com/api
+
+--Lưu ý cho Frontend--
+Không dùng localhost:5000 khi deploy.
+Chỉ gọi API qua Render URL.
+Frontend không cần database credentials.
+Backend đã bật CORS cho production.
+
 
 ## Ghi chú nghiệp vụ (để FE hiển thị đúng)
+
 
 - Student tạo yêu cầu → `pending`
 - Admin duyệt → `approved`
