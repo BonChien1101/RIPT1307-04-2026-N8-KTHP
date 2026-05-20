@@ -1,3 +1,9 @@
+// GET /equipments
+// GET /equipments/:id
+// POST /equipments
+// PUT /equipments/:id
+// DELETE /equipments/:id
+
 const sequelize = require('../config/database');
 const { ok, fail } = require('../utils/response');
 
