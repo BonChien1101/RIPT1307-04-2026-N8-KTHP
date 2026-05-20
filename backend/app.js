@@ -14,7 +14,37 @@ const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 
-app.use(cors());
+const docOriginCors = () => {
+	const raw = (process.env.CORS_ORIGINS || '').trim();
+	if (!raw) return null;
+	return raw
+		.split(',')
+		.map((x) => x.trim())
+		.filter(Boolean);
+};
+
+const danhSachOrigin = docOriginCors();
+
+app.use(
+	cors({
+		origin(origin, cb) {
+			// Không có Origin (Postman/SSR/healthcheck) thì cho qua
+			if (!origin) return cb(null, true);
+			// Nếu không cấu hình CORS_ORIGINS thì mặc định mở (tiện dev)
+			if (!danhSachOrigin) return cb(null, true);
+			if (danhSachOrigin.includes(origin)) return cb(null, true);
+			return cb(new Error('CORS_NOT_ALLOWED'));
+		},
+		credentials: true,
+	})
+);
+
+// Express 5 + path-to-regexp không hỗ trợ '*' kiểu cũ cho route.
+// Xử lý preflight OPTIONS bằng middleware để deploy dùng được.
+app.use((req, res, next) => {
+	if (req.method === 'OPTIONS') return res.sendStatus(204);
+	return next();
+});
 app.use(express.json({ limit: '1mb' }));
 app.use(morgan('dev'));
 
@@ -34,6 +64,9 @@ app.use((req, res) => {
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
+	if (err?.message === 'CORS_NOT_ALLOWED') {
+		return fail(res, 'CORS: origin không được phép', 'CORS_NOT_ALLOWED', 403);
+	}
 	return fail(res, err?.message || 'Lỗi server', 'INTERNAL_ERROR', 500);
 });
 

@@ -1,3 +1,4 @@
+
 const sequelize = require('../config/database');
 const { ok, fail } = require('../utils/response');
 
