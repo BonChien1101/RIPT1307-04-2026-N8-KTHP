@@ -54,11 +54,19 @@ const run = async () => {
       await sequelize.query(s);
       console.log(`OK ${i + 1}/${stmts.length}`);
     } catch (e) {
+      const err = e?.original || e;
+      // Cho phép chạy lại schema nhiều lần:
+      // - CREATE TABLE IF NOT EXISTS đã idempotent
+      // - CREATE INDEX sẽ fail nếu index đã tồn tại => bỏ qua
+      if (err?.code === 'ER_DUP_KEYNAME') {
+        console.log(`SKIP ${i + 1}/${stmts.length} (index exists)`);
+        continue;
+      }
       console.error(`FAIL statement ${i + 1}/${stmts.length}`);
       console.error('--- SQL ---');
       console.error(s);
       console.error('--- ERROR ---');
-      console.error(e?.original || e);
+      console.error(err);
       throw e;
     }
   }

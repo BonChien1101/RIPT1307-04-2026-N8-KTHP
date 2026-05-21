@@ -232,6 +232,18 @@ Tài liệu này để **frontend và backend làm song song**. FE chỉ cần b
 { "actual_return_date": "2026-05-25", "note": "Đã trả đủ" }
 ```
 
+### 4.8 PATCH `/api/borrow-requests/:id/mark-borrowed`
+
+- Auth: có
+- Role: admin
+
+Ghi nhận **đã phát thiết bị** cho sinh viên (trừ tồn kho) và chuyển trạng thái từ `approved` → `borrowed`.
+
+**200**
+```json
+{ "success": true, "message": "Đã ghi nhận mượn thiết bị", "data": { "id": 10 } }
+```
+
 ## 5) Thông báo (Notifications)
 
 ### 5.1 GET `/api/notifications`
@@ -285,7 +297,8 @@ Backend đã bật CORS cho production.
 
 - Student tạo yêu cầu → `pending`
 - Admin duyệt → `approved`
+- Admin ghi nhận **phát thiết bị** → `borrowed`
 - Admin ghi nhận trả → `returned` + set `actual_return_date`
 - `overdue` dùng cho cảnh báo quá hạn (cron/job)
 
-Gợi ý: nếu muốn tách rõ “đã phát đồ” và “đã trả”, có thể bổ sung trạng thái `borrowed` vào schema (không bắt buộc).
+Trạng thái `borrowed` đã được dùng ở backend hiện tại để tách rõ “đã phát đồ” và “đã trả”.
