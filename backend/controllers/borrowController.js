@@ -11,21 +11,21 @@ const taoYeuCau = async (req, res) => {
 		const nguoiDungId = req.user?.id;
 		if (!nguoiDungId) return fail(res, 'Bạn cần đăng nhập', 'AUTH_REQUIRED', 401);
 
-		const { borrowDate, returnDate, items } = req.body || {};
+		const { borrow_date: borrowDate, expected_return_date: returnDate, note, items } = req.body || {};
 		if (!borrowDate || !returnDate || !Array.isArray(items) || items.length === 0) {
 			return fail(res, 'Thiếu dữ liệu yêu cầu mượn', 'VALIDATION_ERROR', 400);
 		}
 
 		const ketQua = await sequelize.transaction(async (t) => {
 			const [rq] = await sequelize.query(
-				`INSERT INTO borrow_requests (user_id, borrow_date, expected_return_date, status, created_at, updated_at)
-				 VALUES (?, ?, ?, 'pending', NOW(), NOW())`,
-				{ replacements: [nguoiDungId, borrowDate, returnDate], transaction: t }
+				`INSERT INTO borrow_requests (user_id, borrow_date, expected_return_date, status, note, created_at, updated_at)
+				 VALUES (?, ?, ?, 'pending', ?, NOW(), NOW())`,
+				{ replacements: [nguoiDungId, borrowDate, returnDate, note || null], transaction: t }
 			);
 
 			const requestId = rq.insertId;
 			for (const item of items) {
-				const thietBiId = Number(item?.equipmentId);
+				const thietBiId = Number(item?.equipment_id);
 				const soLuong = Number(item?.quantity || 1);
 				if (!thietBiId || !Number.isFinite(soLuong) || soLuong <= 0) {
 					throw new Error('INVALID_ITEM');
@@ -41,7 +41,7 @@ const taoYeuCau = async (req, res) => {
 			return { requestId };
 		});
 
-		return ok(res, ketQua, 'Tạo yêu cầu mượn thành công', 201);
+		return ok(res, { id: ketQua.requestId, status: 'pending' }, 'Tạo yêu cầu mượn thành công', 201);
 	} catch (e) {
 		if (e?.message === 'INVALID_ITEM') {
 			return fail(res, 'Danh sách thiết bị không hợp lệ', 'VALIDATION_ERROR', 400);
@@ -83,6 +83,58 @@ const danhSachChoDuyet = async (req, res) => {
 	}
 };
 
+const danhSachAdmin = async (req, res) => {
+	// Trả toàn bộ requests (admin) để khớp docs /api/borrow-requests
+	try {
+		const { status, from, to } = req.query || {};
+		const where = [];
+		const params = [];
+		if (status) {
+			where.push('status = ?');
+			params.push(status);
+		}
+		if (from) {
+			where.push('borrow_date >= ?');
+			params.push(from);
+		}
+		if (to) {
+			where.push('borrow_date <= ?');
+			params.push(to);
+		}
+		const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+		const [rows] = await sequelize.query(
+			`SELECT id, user_id, borrow_date, expected_return_date, actual_return_date, status, approved_by, note, created_at, updated_at
+			 FROM borrow_requests ${whereSql}
+			 ORDER BY id DESC`,
+			{ replacements: params }
+		);
+		return ok(res, rows, 'OK');
+	} catch (e) {
+		return fail(res, 'Lỗi server khi lấy danh sách yêu cầu', 'INTERNAL_ERROR', 500);
+	}
+};
+
+const chiTiet = async (req, res) => {
+	try {
+		const requestId = Number(req.params.id);
+		if (!requestId) return fail(res, 'ID yêu cầu không hợp lệ', 'VALIDATION_ERROR', 400);
+		const [rows] = await sequelize.query(
+			`SELECT id, user_id, borrow_date, expected_return_date, actual_return_date, status, approved_by, note, created_at, updated_at
+			 FROM borrow_requests WHERE id = ? LIMIT 1`,
+			{ replacements: [requestId] }
+		);
+		const request = rows?.[0];
+		if (!request) return fail(res, 'Không tìm thấy yêu cầu mượn', 'NOT_FOUND', 404);
+		const [items] = await sequelize.query(
+			`SELECT id, request_id, equipment_id, quantity, created_at FROM borrow_items WHERE request_id = ? ORDER BY id ASC`,
+			{ replacements: [requestId] }
+		);
+		return ok(res, { ...request, items }, 'OK');
+	} catch (e) {
+		return fail(res, 'Lỗi server khi lấy chi tiết yêu cầu', 'INTERNAL_ERROR', 500);
+	}
+};
+
 const duyet = async (req, res) => {
 	try {
 		const nguoiDuyetId = req.user?.id;
@@ -93,7 +145,7 @@ const duyet = async (req, res) => {
 
 		const [result] = await sequelize.query(
 			`UPDATE borrow_requests
-			 SET status = 'approved', approved_by = ?, approved_at = NOW(), updated_at = NOW()
+			 SET status = 'approved', approved_by = ?, updated_at = NOW()
 			 WHERE id = ? AND status = 'pending'`,
 			{ replacements: [nguoiDuyetId, requestId] }
 		);
@@ -114,13 +166,13 @@ const tuChoi = async (req, res) => {
 
 		const requestId = Number(req.params.id);
 		if (!requestId) return fail(res, 'ID yêu cầu không hợp lệ', 'VALIDATION_ERROR', 400);
-		const { reason } = req.body || {};
+		const { reason, note } = req.body || {};
 
 		const [result] = await sequelize.query(
 			`UPDATE borrow_requests
-			 SET status = 'rejected', approved_by = ?, rejected_reason = ?, updated_at = NOW()
+			 SET status = 'rejected', approved_by = ?, note = ?, updated_at = NOW()
 			 WHERE id = ? AND status = 'pending'`,
-			{ replacements: [nguoiDuyetId, reason || null, requestId] }
+			{ replacements: [nguoiDuyetId, note || reason || null, requestId] }
 		);
 
 		if (!result.affectedRows) {
@@ -162,9 +214,7 @@ const ghiNhanDaMuon = async (req, res) => {
 			}
 
 			await sequelize.query(
-				`UPDATE borrow_requests
-				 SET status = 'borrowed', borrowed_at = NOW(), updated_at = NOW()
-				 WHERE id = ?`,
+				`UPDATE borrow_requests SET status = 'borrowed', updated_at = NOW() WHERE id = ?`,
 				{ replacements: [requestId], transaction: t }
 			);
 		});
@@ -205,9 +255,7 @@ const ghiNhanDaTra = async (req, res) => {
 			}
 
 			await sequelize.query(
-				`UPDATE borrow_requests
-				 SET status = 'returned', returned_at = NOW(), updated_at = NOW()
-				 WHERE id = ?`,
+				`UPDATE borrow_requests SET status = 'returned', actual_return_date = CURDATE(), updated_at = NOW() WHERE id = ?`,
 				{ replacements: [requestId], transaction: t }
 			);
 		});
@@ -224,6 +272,8 @@ module.exports = {
 	taoYeuCau,
 	lichSuCuaToi,
 	danhSachChoDuyet,
+	danhSachAdmin,
+	chiTiet,
 	duyet,
 	tuChoi,
 	ghiNhanDaMuon,
