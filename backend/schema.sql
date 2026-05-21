@@ -1,8 +1,3 @@
-CREATE DATABASE IF NOT EXISTS club_equipment_management
-CHARACTER SET utf8mb4
-COLLATE utf8mb4_unicode_ci;
-
-USE club_equipment_management;
 
 -- =========================================
 -- USERS
@@ -127,7 +122,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 ) ENGINE=InnoDB;
 
 -- =========================================
--- INDEXES // tăng tốc độ truy vấn
+-- INDEXES 
 -- =========================================
 
 CREATE INDEX idx_borrow_user
