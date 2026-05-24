@@ -26,27 +26,15 @@ export default defineConfig({
   targets: {
     ie: 11,
   },
-  routes: [
-    {
-      path: '/',
-      name: 'Đăng nhập',
-      component: './Login',
-      layout: false,
-    },
-    {
-      path: '/student',
-      name: 'Sinh viên',
-      component: './Student',
-      access: 'canStudent',
-    },
-    {
-      path: '/admin',
-      name: 'Quản trị viên',
-      component: './Admin',
-      access: 'canAdmin',
-    },
-  ],
   devServer: {
     port: 8000,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+    },
   },
+  history: { type: 'hash' },
+  outputPath: 'dist',
 });

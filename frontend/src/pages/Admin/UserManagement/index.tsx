@@ -23,7 +23,6 @@ import {
   EyeOutlined,
   LockOutlined,
 } from '@ant-design/icons';
-import { history } from 'umi';
 import './styles.less';
 
 interface User {
@@ -53,13 +52,13 @@ const UserManagement: React.FC = () => {
   useEffect(() => {
     const user = localStorage.getItem('user');
     if (!user) {
-      history.push('/');
+      window.location.hash = '#/';
       return;
     }
 
     const userData = JSON.parse(user);
     if (userData.role !== 'admin') {
-      history.push('/');
+      window.location.hash = '#/';
       return;
     }
 
@@ -243,7 +242,6 @@ const UserManagement: React.FC = () => {
           </Tooltip>
           <Popconfirm
             title="Xóa người dùng này?"
-            description="Hành động này không thể hoàn tác!"
             onConfirm={() => handleDeleteUser(record.id)}
             okText="Có"
             cancelText="Không"
@@ -293,8 +291,6 @@ const UserManagement: React.FC = () => {
             Thêm Người Dùng
           </Button>
         </div>
-
-        {/* Users Table */}
         <Table
           columns={columns}
           dataSource={users}
@@ -307,11 +303,9 @@ const UserManagement: React.FC = () => {
           }}
         />
       </Card>
-
-      {/* Add/Edit User Modal */}
       <Modal
         title={editingUser ? 'Chỉnh Sửa Người Dùng' : 'Thêm Người Dùng'}
-        open={isModalOpen}
+        visible={isModalOpen}
         onCancel={() => {
           setIsModalOpen(false);
           form.resetFields();

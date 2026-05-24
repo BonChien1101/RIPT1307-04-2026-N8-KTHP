@@ -18,6 +18,7 @@ export default defineConfig({
   define: {
     'process.env.REACT_APP_ENV': process.env.REACT_APP_ENV,
     'process.env.UMI_ENV': process.env.UMI_ENV || 'dev',
+    'process.env.API_URL': 'http://localhost:5000', // URL của backend
   },
   ignoreMomentLocale: true,
   dynamicImport: {
@@ -27,9 +28,8 @@ export default defineConfig({
     ie: 11,
   },
   
-  publicPath: '/', 
   history: { type: 'hash' }, 
-
+  outputPath: 'dist',
   routes: [
     {
       path: '/',

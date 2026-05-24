@@ -21,7 +21,7 @@ export const equipmentService = {
   getAll: async (params = {}) => {
     try {
       const queryString = new URLSearchParams(params).toString();
-      const url = queryString ? `${API_URL}/equipment?${queryString}` : `${API_URL}/equipment`;
+      const url = queryString ? `${API_URL}/equipments?${queryString}` : `${API_URL}/equipments`;
       
       const response = await fetch(url, {
         method: 'GET',
@@ -45,7 +45,7 @@ export const equipmentService = {
    */
   getById: async (id) => {
     try {
-      const response = await fetch(`${API_URL}/equipment/${id}`, {
+      const response = await fetch(`${API_URL}/equipments/${id}`, {
         method: 'GET',
         headers: getHeaders(),
       });
@@ -67,7 +67,7 @@ export const equipmentService = {
    */
   create: async (data) => {
     try {
-      const response = await fetch(`${API_URL}/equipment`, {
+      const response = await fetch(`${API_URL}/equipments`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify(data),
@@ -92,7 +92,7 @@ export const equipmentService = {
    */
   update: async (id, data) => {
     try {
-      const response = await fetch(`${API_URL}/equipment/${id}`, {
+      const response = await fetch(`${API_URL}/equipments/${id}`, {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify(data),
@@ -116,7 +116,7 @@ export const equipmentService = {
    */
   delete: async (id) => {
     try {
-      const response = await fetch(`${API_URL}/equipment/${id}`, {
+      const response = await fetch(`${API_URL}/equipments/${id}`, {
         method: 'DELETE',
         headers: getHeaders(),
       });
@@ -137,7 +137,7 @@ export const equipmentService = {
    */
   getStatistics: async () => {
     try {
-      const response = await fetch(`${API_URL}/equipment/statistics`, {
+      const response = await fetch(`${API_URL}/equipments/statistics`, {
         method: 'GET',
         headers: getHeaders(),
       });

@@ -32,7 +32,6 @@ import {
   BgColorsOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
-import { history } from 'umi';
 import UserManagement from './UserManagement/index';
 import './styles.less';
 
@@ -79,11 +78,11 @@ const Admin: React.FC = () => {
     if (userData) {
       const parsedUser = JSON.parse(userData);
       if (parsedUser.role !== 'admin') {
-        history.push('/');
+        window.location.hash = '#/';
       }
       setUser(parsedUser);
     } else {
-      history.push('/');
+      window.location.hash = '#/';
     }
 
     fetchBorrowRequests();
@@ -112,7 +111,7 @@ const Admin: React.FC = () => {
   const fetchEquipment = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/equipment', {
+      const response = await fetch('http://localhost:5000/api/equipments', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -200,7 +199,7 @@ const Admin: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/equipment', {
+      const response = await fetch('http://localhost:5000/api/equipments', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -229,7 +228,7 @@ const Admin: React.FC = () => {
   const handleDeleteEquipment = async (equipmentId: number) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/equipment/${equipmentId}`, {
+      const response = await fetch(`http://localhost:5000/api/equipments/${equipmentId}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -253,7 +252,7 @@ const Admin: React.FC = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     message.success('Đã đăng xuất!');
-    history.push('/');
+    window.location.hash = '#/';
     window.location.reload();
   };
 
@@ -395,7 +394,7 @@ const Admin: React.FC = () => {
             <DashboardOutlined style={{ fontSize: 24, marginRight: 10 }} />
             <span>Hệ Thống Quản Lý Mượn Đồ Dùng - Quản Trị Viên</span>
           </div>
-          <Dropdown menu={{ items: [] }} overlay={userMenu}>
+          <Dropdown overlay={userMenu}>
             <div className="user-info">
               <Avatar icon={<UserOutlined />} />
               <span style={{ marginLeft: 10 }}>{user?.name || 'Quản Trị Viên'}</span>

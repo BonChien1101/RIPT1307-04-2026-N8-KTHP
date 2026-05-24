@@ -27,7 +27,6 @@ import {
   ClockCircleOutlined,
   ExclamationCircleOutlined,
 } from '@ant-design/icons';
-import { history } from 'umi';
 import './styles.less';
 
 const { Header, Content, Sider } = Layout;
@@ -66,7 +65,7 @@ const Student: React.FC = () => {
     if (userData) {
       setUser(JSON.parse(userData));
     } else {
-      history.push('/');
+      window.location.hash = '#/';
     }
 
     fetchEquipment();
@@ -76,7 +75,7 @@ const Student: React.FC = () => {
   const fetchEquipment = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/equipment', {
+      const response = await fetch('http://localhost:5000/api/equipments', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -154,7 +153,7 @@ const Student: React.FC = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     message.success('Đã đăng xuất!');
-    history.push('/');
+    window.location.hash = '#/';
     window.location.reload();
   };
 

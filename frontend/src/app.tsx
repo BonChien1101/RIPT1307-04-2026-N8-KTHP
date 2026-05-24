@@ -15,7 +15,3 @@ export async function getInitialState() {
   }
   return undefined;
 }
-
-// UmiJS requires a default export
-export default () => <></>;
-
