@@ -24,6 +24,8 @@ import {
   DashboardOutlined,
   LogoutOutlined,
   UserOutlined,
+  EyeOutlined,
+  EditOutlined,
   CheckCircleOutlined,
   DeleteOutlined,
   CloseCircleOutlined,
@@ -38,9 +40,12 @@ const { Header, Content, Sider } = Layout;
 interface Equipment {
   id: number;
   name: string;
+  category?: string;
   total_quantity: number;
   available_quantity: number;
   description: string;
+  image_url?: string;
+  status?: 'available' | 'low_stock' | 'out_of_stock';
 }
 
 interface BorrowRequest {
@@ -51,16 +56,40 @@ interface BorrowRequest {
   status: 'pending' | 'approved' | 'rejected' | 'borrowed' | 'returned';
 }
 
+interface BorrowRequestDetail extends BorrowRequest {
+  actual_return_date?: string;
+  note?: string;
+  items?: Array<{
+    id: number;
+    equipment_id: number;
+    quantity: number;
+  }>;
+}
+
+interface EquipmentDetail extends Equipment {
+  created_at?: string;
+  updated_at?: string;
+}
+
 const Admin: React.FC = () => {
   const [activeTab, setActiveTab] = useState('requests');
   const [borrowRequests, setBorrowRequests] = useState<BorrowRequest[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
-  const [isModalVisible, setIsModalVisible] = useState(false);
   const [isEquipmentModalVisible, setIsEquipmentModalVisible] = useState(false);
+  const [isEquipmentDetailModalVisible, setIsEquipmentDetailModalVisible] = useState(false);
   const [form] = Form.useForm();
   const [equipmentForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [requestDetailLoading, setRequestDetailLoading] = useState(false);
+  const [equipmentDetailLoading, setEquipmentDetailLoading] = useState(false);
+  const [isRequestDetailModalVisible, setIsRequestDetailModalVisible] = useState(false);
+  const [selectedRequestDetail, setSelectedRequestDetail] = useState<BorrowRequestDetail | null>(null);
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
+  const [selectedEquipmentDetail, setSelectedEquipmentDetail] = useState<EquipmentDetail | null>(null);
+  const [topEquipment, setTopEquipment] = useState<Array<{ id: number; name: string; tongMuon: number }>>([]);
+  const [topEquipmentLoading, setTopEquipmentLoading] = useState(false);
+  const [statYear, setStatYear] = useState(new Date().getFullYear());
+  const [statMonth, setStatMonth] = useState(new Date().getMonth() + 1);
   const [user, setUser] = useState<any>(null);
   const apiUrl = `${process.env.API_URL}/api`;
   const [stats, setStats] = useState({
@@ -91,6 +120,7 @@ const Admin: React.FC = () => {
     fetchBorrowRequests();
     fetchEquipment();
     fetchStats();
+    fetchTopBorrowedEquipment(new Date().getFullYear(), new Date().getMonth() + 1);
   }, []);
 
   const fetchBorrowRequests = async () => {
@@ -109,6 +139,106 @@ const Admin: React.FC = () => {
       message.error('Lỗi tải danh sách yêu cầu!');
       console.error('Error fetching requests:', error);
     }
+  };
+
+  const handleViewRequestDetail = async (requestId: number) => {
+    setRequestDetailLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${apiUrl}/borrow-requests/${requestId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        message.error('Không tải được chi tiết yêu cầu!');
+        return;
+      }
+
+      const payload = await response.json();
+      setSelectedRequestDetail(payload?.data || null);
+      setIsRequestDetailModalVisible(true);
+    } catch (error) {
+      message.error('Lỗi tải chi tiết yêu cầu!');
+      console.error('Error fetching request detail:', error);
+    } finally {
+      setRequestDetailLoading(false);
+    }
+  };
+
+  const handleViewEquipmentDetail = async (equipmentId: number) => {
+    setEquipmentDetailLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${apiUrl}/equipments/${equipmentId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        message.error('Không tải được chi tiết thiết bị!');
+        return;
+      }
+
+      const payload = await response.json();
+      setSelectedEquipmentDetail(payload?.data || null);
+      setIsEquipmentDetailModalVisible(true);
+    } catch (error) {
+      message.error('Lỗi tải chi tiết thiết bị!');
+      console.error('Error fetching equipment detail:', error);
+    } finally {
+      setEquipmentDetailLoading(false);
+    }
+  };
+
+  const fetchTopBorrowedEquipment = async (year = statYear, month = statMonth) => {
+    setTopEquipmentLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${apiUrl}/statistics/top-equipment?year=${year}&month=${month}&limit=10`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        setTopEquipment([]);
+        return;
+      }
+
+      const payload = await response.json();
+      setTopEquipment(payload?.data || []);
+    } catch (error) {
+      console.error('Error fetching top equipment:', error);
+      setTopEquipment([]);
+    } finally {
+      setTopEquipmentLoading(false);
+    }
+  };
+
+  const openAddEquipmentModal = () => {
+    setSelectedEquipment(null);
+    equipmentForm.resetFields();
+    equipmentForm.setFieldsValue({
+      total_quantity: 1,
+      available_quantity: 1,
+    });
+    setIsEquipmentModalVisible(true);
+  };
+
+  const handleEditEquipment = (item: Equipment) => {
+    setSelectedEquipment(item);
+    equipmentForm.setFieldsValue({
+      name: item.name,
+      category: item.category,
+      description: item.description,
+      total_quantity: item.total_quantity,
+      available_quantity: item.available_quantity,
+      image_url: item.image_url,
+    });
+    setIsEquipmentModalVisible(true);
   };
 
   const fetchEquipment = async () => {
@@ -168,6 +298,8 @@ const Admin: React.FC = () => {
         message.success('Phê duyệt yêu cầu thành công!');
         fetchBorrowRequests();
         fetchStats();
+        fetchEquipment();
+        fetchTopBorrowedEquipment();
       } else {
         message.error('Phê duyệt yêu cầu thất bại!');
       }
@@ -194,6 +326,7 @@ const Admin: React.FC = () => {
         message.success('Từ chối yêu cầu thành công!');
         fetchBorrowRequests();
         fetchStats();
+        fetchTopBorrowedEquipment();
       } else {
         message.error('Từ chối yêu cầu thất bại!');
       }
@@ -203,33 +336,38 @@ const Admin: React.FC = () => {
     }
   };
 
-  const handleAddEquipment = async (values: any) => {
+  const handleSaveEquipment = async (values: any) => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${apiUrl}/equipments`, {
-        method: 'POST',
+      const isEditing = !!selectedEquipment;
+      const response = await fetch(isEditing ? `${apiUrl}/equipments/${selectedEquipment!.id}` : `${apiUrl}/equipments`, {
+        method: isEditing ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           name: values.name,
+          category: values.category,
           description: values.description,
-          total_quantity: values.quantity,
-          available_quantity: values.quantity,
-          status: 'available',
+          total_quantity: values.total_quantity,
+          available_quantity: values.available_quantity,
+          image_url: values.image_url,
+          status: values.status,
         }),
       });
 
       if (response.ok) {
-        message.success('Thêm thiết bị thành công!');
+        message.success(isEditing ? 'Cập nhật thiết bị thành công!' : 'Thêm thiết bị thành công!');
         setIsEquipmentModalVisible(false);
         equipmentForm.resetFields();
+        setSelectedEquipment(null);
         fetchEquipment();
         fetchStats();
+        fetchTopBorrowedEquipment();
       } else {
-        message.error('Thêm thiết bị thất bại!');
+        message.error(isEditing ? 'Cập nhật thiết bị thất bại!' : 'Thêm thiết bị thất bại!');
       }
     } catch (error) {
       message.error('Lỗi kết nối đến server!');
@@ -253,6 +391,7 @@ const Admin: React.FC = () => {
         message.success('Xóa thiết bị thành công!');
         fetchEquipment();
         fetchStats();
+        fetchTopBorrowedEquipment();
       } else {
         message.error('Xóa thiết bị thất bại!');
       }
@@ -268,6 +407,56 @@ const Admin: React.FC = () => {
     message.success('Đã đăng xuất!');
     window.location.hash = '#/';
     window.location.reload();
+  };
+
+  const handleMarkBorrowed = async (requestId: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${apiUrl}/borrow-requests/${requestId}/mark-borrowed`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        message.success('Đã ghi nhận thiết bị được mượn!');
+        fetchBorrowRequests();
+        fetchEquipment();
+        fetchStats();
+        fetchTopBorrowedEquipment();
+      } else {
+        message.error('Ghi nhận mượn thất bại!');
+      }
+    } catch (error) {
+      message.error('Lỗi kết nối đến server!');
+      console.error('Error marking borrowed:', error);
+    }
+  };
+
+  const handleMarkReturned = async (requestId: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${apiUrl}/borrow-requests/${requestId}/mark-returned`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        message.success('Đã ghi nhận thiết bị được trả!');
+        fetchBorrowRequests();
+        fetchEquipment();
+        fetchStats();
+        fetchTopBorrowedEquipment();
+      } else {
+        message.error('Ghi nhận trả thất bại!');
+      }
+    } catch (error) {
+      message.error('Lỗi kết nối đến server!');
+      console.error('Error marking returned:', error);
+    }
   };
 
   const requestColumns = [
@@ -305,31 +494,45 @@ const Admin: React.FC = () => {
       title: 'Hành Động',
       key: 'action',
       render: (_: any, record: BorrowRequest) => {
-        if (record.status === 'pending') {
-          return (
-            <Space>
-              <Button
-                type="primary"
-                size="small"
-                icon={<CheckCircleOutlined />}
-                onClick={() => handleApprove(record.id)}
-              >
-                Phê Duyệt
-              </Button>
-              <Popconfirm
-                title="Từ chối yêu cầu này?"
-                onConfirm={() => handleReject(record.id)}
-                okText="Có"
-                cancelText="Không"
-              >
-                <Button danger size="small" icon={<CloseCircleOutlined />}>
-                  Từ Chối
+        return (
+          <Space>
+            <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewRequestDetail(record.id)}>
+              Chi Tiết
+            </Button>
+            {record.status === 'pending' && (
+              <>
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<CheckCircleOutlined />}
+                  onClick={() => handleApprove(record.id)}
+                >
+                  Phê Duyệt
                 </Button>
-              </Popconfirm>
-            </Space>
-          );
-        }
-        return '-';
+                <Popconfirm
+                  title="Từ chối yêu cầu này?"
+                  onConfirm={() => handleReject(record.id)}
+                  okText="Có"
+                  cancelText="Không"
+                >
+                  <Button danger size="small" icon={<CloseCircleOutlined />}>
+                    Từ Chối
+                  </Button>
+                </Popconfirm>
+              </>
+            )}
+            {record.status === 'approved' && (
+              <Button type="default" size="small" onClick={() => handleMarkBorrowed(record.id)}>
+                Ghi Nhận Mượn
+              </Button>
+            )}
+            {record.status === 'borrowed' && (
+              <Button type="default" size="small" onClick={() => handleMarkReturned(record.id)}>
+                Ghi Nhận Trả
+              </Button>
+            )}
+          </Space>
+        );
       },
     },
   ];
@@ -364,16 +567,24 @@ const Admin: React.FC = () => {
       title: 'Hành Động',
       key: 'action',
       render: (_: any, record: Equipment) => (
-        <Popconfirm
-          title="Xóa thiết bị này?"
-          onConfirm={() => handleDeleteEquipment(record.id)}
-          okText="Có"
-          cancelText="Không"
-        >
-          <Button danger size="small" icon={<DeleteOutlined />}>
-            Xóa
+        <Space>
+          <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewEquipmentDetail(record.id)}>
+            Chi Tiết
           </Button>
-        </Popconfirm>
+          <Button size="small" icon={<EditOutlined />} onClick={() => handleEditEquipment(record)}>
+            Sửa
+          </Button>
+          <Popconfirm
+            title="Xóa thiết bị này?"
+            onConfirm={() => handleDeleteEquipment(record.id)}
+            okText="Có"
+            cancelText="Không"
+          >
+            <Button danger size="small" icon={<DeleteOutlined />}>
+              Xóa
+            </Button>
+          </Popconfirm>
+        </Space>
       ),
     },
   ];
@@ -463,6 +674,35 @@ const Admin: React.FC = () => {
                     </Card>
                   </Col>
                 </Row>
+
+                <Card
+                  title="Thiết Bị Mượn Nhiều Trong Tháng"
+                  className="content-card"
+                  extra={
+                    <Space>
+                      <InputNumber min={2000} max={2100} value={statYear} onChange={(value) => setStatYear(Number(value) || new Date().getFullYear())} />
+                      <InputNumber min={1} max={12} value={statMonth} onChange={(value) => setStatMonth(Number(value) || new Date().getMonth() + 1)} />
+                      <Button
+                        type="primary"
+                        onClick={() => fetchTopBorrowedEquipment(statYear, statMonth)}
+                      >
+                        Xem Thống Kê
+                      </Button>
+                    </Space>
+                  }
+                >
+                  <Table
+                    rowKey="id"
+                    loading={topEquipmentLoading}
+                    dataSource={topEquipment}
+                    pagination={false}
+                    columns={[
+                      { title: 'Mã Thiết Bị', dataIndex: 'id', key: 'id' },
+                      { title: 'Tên Thiết Bị', dataIndex: 'name', key: 'name' },
+                      { title: 'Số Lần Mượn', dataIndex: 'tongMuon', key: 'tongMuon' },
+                    ]}
+                  />
+                </Card>
               </div>
             )}
 
@@ -484,7 +724,7 @@ const Admin: React.FC = () => {
                 extra={
                   <Button
                     type="primary"
-                    onClick={() => setIsEquipmentModalVisible(true)}
+                    onClick={openAddEquipmentModal}
                   >
                     Thêm Thiết Bị
                   </Button>
@@ -506,15 +746,20 @@ const Admin: React.FC = () => {
       </Layout>
 
       <Modal
-        title="Thêm Thiết Bị"
+        title={selectedEquipment ? 'Chỉnh Sửa Thiết Bị' : 'Thêm Thiết Bị'}
         visible={isEquipmentModalVisible}
-        onCancel={() => setIsEquipmentModalVisible(false)}
+        onCancel={() => {
+          setIsEquipmentModalVisible(false);
+          setSelectedEquipment(null);
+          equipmentForm.resetFields();
+        }}
         footer={null}
+        destroyOnClose
       >
         <Form
           form={equipmentForm}
           layout="vertical"
-          onFinish={handleAddEquipment}
+          onFinish={handleSaveEquipment}
         >
           <Form.Item
             label="Tên Thiết Bị"
@@ -522,6 +767,13 @@ const Admin: React.FC = () => {
             rules={[{ required: true, message: 'Vui lòng nhập tên thiết bị!' }]}
           >
             <Input placeholder="Nhập tên thiết bị" />
+          </Form.Item>
+
+          <Form.Item
+            label="Danh Mục"
+            name="category"
+          >
+            <Input placeholder="Nhập danh mục thiết bị" />
           </Form.Item>
 
           <Form.Item
@@ -533,8 +785,8 @@ const Admin: React.FC = () => {
           </Form.Item>
 
           <Form.Item
-            label="Số Lượng"
-            name="quantity"
+            label="Tổng Số Lượng"
+            name="total_quantity"
             rules={[
               { required: true, message: 'Vui lòng nhập số lượng!' },
               { type: 'number', min: 1, message: 'Số lượng phải lớn hơn 0!' },
@@ -543,12 +795,121 @@ const Admin: React.FC = () => {
             <InputNumber min={1} placeholder="Nhập số lượng" />
           </Form.Item>
 
+          <Form.Item
+            label="Số Lượng Tồn Kho"
+            name="available_quantity"
+            rules={[
+              { required: true, message: 'Vui lòng nhập số lượng tồn kho!' },
+              { type: 'number', min: 0, message: 'Số lượng tồn kho không hợp lệ!' },
+            ]}
+          >
+            <InputNumber min={0} placeholder="Nhập số lượng tồn kho" />
+          </Form.Item>
+
+          <Form.Item
+            label="Link Ảnh"
+            name="image_url"
+          >
+            <Input placeholder="Nhập link ảnh thiết bị" />
+          </Form.Item>
+
+          <Form.Item
+            label="Trạng Thái"
+            name="status"
+          >
+            <Select
+              placeholder="Chọn trạng thái"
+              options={[
+                { label: 'Còn hàng', value: 'available' },
+                { label: 'Sắp hết', value: 'low_stock' },
+                { label: 'Hết hàng', value: 'out_of_stock' },
+              ]}
+            />
+          </Form.Item>
+
           <Form.Item>
             <Button type="primary" htmlType="submit" block loading={loading}>
-              Thêm Thiết Bị
+              {selectedEquipment ? 'Cập Nhật Thiết Bị' : 'Thêm Thiết Bị'}
             </Button>
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title="Chi Tiết Thiết Bị"
+        visible={isEquipmentDetailModalVisible}
+        onCancel={() => setIsEquipmentDetailModalVisible(false)}
+        footer={null}
+        width={720}
+        confirmLoading={equipmentDetailLoading}
+        destroyOnClose
+      >
+        {selectedEquipmentDetail && (
+          <Space direction="vertical" style={{ width: '100%' }} size="middle">
+            <Card size="small">
+              <p><strong>Mã thiết bị:</strong> {selectedEquipmentDetail.id}</p>
+              <p><strong>Tên thiết bị:</strong> {selectedEquipmentDetail.name}</p>
+              <p><strong>Danh mục:</strong> {selectedEquipmentDetail.category || '-'}</p>
+              <p><strong>Mô tả:</strong> {selectedEquipmentDetail.description || '-'}</p>
+              <p><strong>Tổng số lượng:</strong> {selectedEquipmentDetail.total_quantity}</p>
+              <p><strong>Số lượng tồn kho:</strong> {selectedEquipmentDetail.available_quantity}</p>
+              <p><strong>Đang mượn:</strong> {selectedEquipmentDetail.total_quantity - selectedEquipmentDetail.available_quantity}</p>
+              <p><strong>Trạng thái:</strong> {selectedEquipmentDetail.status || '-'}</p>
+            </Card>
+          </Space>
+        )}
+      </Modal>
+
+      <Modal
+        title="Chi Tiết Yêu Cầu Mượn"
+        visible={isRequestDetailModalVisible}
+        onCancel={() => setIsRequestDetailModalVisible(false)}
+        footer={null}
+        width={720}
+        confirmLoading={requestDetailLoading}
+        destroyOnClose
+      >
+        {selectedRequestDetail && (
+          <Space direction="vertical" style={{ width: '100%' }} size="middle">
+            <Card size="small">
+              <p><strong>Mã yêu cầu:</strong> {selectedRequestDetail.id}</p>
+              <p><strong>Mã người dùng:</strong> {selectedRequestDetail.user_id}</p>
+              <p><strong>Ngày mượn:</strong> {selectedRequestDetail.borrow_date}</p>
+              <p><strong>Ngày trả dự kiến:</strong> {selectedRequestDetail.expected_return_date}</p>
+              <p><strong>Ngày trả thực tế:</strong> {selectedRequestDetail.actual_return_date || '-'}</p>
+              <p>
+                <strong>Trạng thái:</strong>{' '}
+                <Badge
+                  status={
+                    selectedRequestDetail.status === 'pending'
+                      ? 'processing'
+                      : selectedRequestDetail.status === 'approved'
+                      ? 'success'
+                      : selectedRequestDetail.status === 'borrowed'
+                      ? 'warning'
+                      : selectedRequestDetail.status === 'returned'
+                      ? 'default'
+                      : 'error'
+                  }
+                  text={selectedRequestDetail.status}
+                />
+              </p>
+              <p><strong>Ghi chú:</strong> {selectedRequestDetail.note || '-'}</p>
+            </Card>
+
+            <Card title="Danh sách thiết bị trong yêu cầu" size="small">
+              <Table
+                rowKey={(item) => String(item.id)}
+                dataSource={selectedRequestDetail.items || []}
+                pagination={false}
+                columns={[
+                  { title: 'Mã thiết bị', dataIndex: 'equipment_id', key: 'equipment_id' },
+                  { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity' },
+                ]}
+              />
+            </Card>
+          </Space>
+        )}
       </Modal>
     </Layout>
   );
