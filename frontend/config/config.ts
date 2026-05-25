@@ -8,7 +8,7 @@ export default defineConfig({
   locale: {
     default: 'vi-VN',
     antd: true,
-    baseNavigator: true,
+    baseNavigator: false,
   },
   antd: {},
   dva: {
@@ -18,7 +18,7 @@ export default defineConfig({
   define: {
     'process.env.REACT_APP_ENV': process.env.REACT_APP_ENV,
     'process.env.UMI_ENV': process.env.UMI_ENV || 'dev',
-    'process.env.API_URL': 'http://localhost:5000', // URL của backend
+    'process.env.API_URL': process.env.API_URL || 'https://ript1307-04-2026-n8-kthp.onrender.com',
   },
   ignoreMomentLocale: true,
   dynamicImport: {
@@ -33,19 +33,19 @@ export default defineConfig({
   routes: [
     {
       path: '/',
-      name: 'Đăng nhập',
+      name: 'login',
       component: './Login',
       layout: false,
     },
     {
       path: '/student',
-      name: 'Sinh viên',
+      name: 'student',
       component: './Student', 
       access: 'canStudent',
     },
     {
       path: '/admin',
-      name: 'Quản trị viên',
+      name: 'admin',
       component: './Admin', 
       access: 'canAdmin',
     },

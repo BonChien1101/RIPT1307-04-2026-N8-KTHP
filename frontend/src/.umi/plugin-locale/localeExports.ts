@@ -40,8 +40,20 @@ let g_intl: IntlShape;
 
 const useLocalStorage = true;
 
+import viVN0 from 'antd/es/locale/vi_VN';
+import lang_viVN0 from "D:/FINAL WEB/frontend/src/locales/vi-VN.ts";
 
 export const localeInfo: {[key: string]: any} = {
+  'vi-VN': {
+    messages: {
+      ...lang_viVN0,
+    },
+    locale: 'vi-VN',
+    antd: {
+      ...viVN0,
+    },
+    momentLocale: 'vi',
+  },
 };
 
 /**
@@ -96,6 +108,11 @@ export const getIntl = (locale?: string, changeIntl?: boolean) => {
   if (locale&&localeInfo[locale]) {
     return createIntl(localeInfo[locale]);
   }
+  // 不存在需要一个报错提醒
+  warning(
+    !locale||!!localeInfo[locale],
+    `The current popular language does not exist, please check the locales folder!`,
+  );
   // 使用 zh-CN
   if (localeInfo["vi-VN"]) return createIntl(localeInfo["vi-VN"]);
 
@@ -136,11 +153,6 @@ export const getLocale = () => {
       : '';
   // support baseNavigator, default true
   let browserLang;
-  const isNavigatorLanguageValid =
-    typeof navigator !== 'undefined' && typeof navigator.language === 'string';
-  browserLang = isNavigatorLanguageValid
-    ? navigator.language.split('-').join('-')
-    : '';
   return lang || browserLang || "vi-VN";
 };
 

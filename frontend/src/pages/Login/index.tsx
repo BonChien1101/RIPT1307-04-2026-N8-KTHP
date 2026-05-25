@@ -13,11 +13,11 @@ import './styles.less';
 const Login: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const apiUrl = `${process.env.API_URL}/api`;
 
   const handleLogin = async (values: any) => {
     setLoading(true);
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
       const response = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -28,19 +28,29 @@ const Login: React.FC = () => {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        const payload = await response.json();
+        const loginData = payload?.data || payload;
+        const token = loginData?.token;
+        const user = loginData?.user;
+
+        if (!token || !user || !user.role) {
+          message.error('Phản hồi đăng nhập không hợp lệ từ server!');
+          return;
+        }
+
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
         message.success('Đăng nhập thành công!');
 
-        if (data.user.role === 'admin') {
+        if (user.role === 'admin') {
           window.location.hash = '#/admin';
         } else {
           window.location.hash = '#/student';
         }
         window.location.reload();
       } else {
-        message.error('Email hoặc mật khẩu không đúng!');
+        const errorPayload = await response.json().catch(() => null);
+        message.error(errorPayload?.message || 'Email hoặc mật khẩu không đúng!');
       }
     } catch (error) {
       message.error('Lỗi kết nối server!');

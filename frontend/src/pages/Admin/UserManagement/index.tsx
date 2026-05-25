@@ -42,6 +42,7 @@ const UserManagement: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
   const [formLoading, setFormLoading] = useState(false);
+  const apiUrl = `${process.env.API_URL}/api`;
   const [stats, setStats] = useState({
     totalUsers: 0,
     adminCount: 0,
@@ -51,12 +52,20 @@ const UserManagement: React.FC = () => {
 
   useEffect(() => {
     const user = localStorage.getItem('user');
-    if (!user) {
+    if (!user || user === 'undefined' || user === 'null') {
       window.location.hash = '#/';
       return;
     }
 
-    const userData = JSON.parse(user);
+    let userData: any;
+    try {
+      userData = JSON.parse(user);
+    } catch (error) {
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      window.location.hash = '#/';
+      return;
+    }
     if (userData.role !== 'admin') {
       window.location.hash = '#/';
       return;
@@ -69,7 +78,7 @@ const UserManagement: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/users', {
+      const response = await fetch(`${apiUrl}/users`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -119,7 +128,7 @@ const UserManagement: React.FC = () => {
   const handleDeleteUser = async (userId: number) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/users/${userId}`, {
+      const response = await fetch(`${apiUrl}/users/${userId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -143,8 +152,8 @@ const UserManagement: React.FC = () => {
     try {
       const token = localStorage.getItem('token');
       const url = editingUser
-        ? `http://localhost:5000/api/users/${editingUser.id}`
-        : 'http://localhost:5000/api/users';
+        ? `${apiUrl}/users/${editingUser.id}`
+        : `${apiUrl}/users`;
 
       const method = editingUser ? 'PUT' : 'POST';
 

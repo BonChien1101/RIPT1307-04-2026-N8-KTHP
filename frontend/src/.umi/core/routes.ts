@@ -72,21 +72,21 @@ export function getRoutes() {
       },
       {
         "path": "/",
-        "name": "Đăng nhập",
+        "name": "login",
         "component": dynamic({ loader: () => import(/* webpackChunkName: 'p__Login' */'D:/FINAL WEB/frontend/src/pages/Login'), loading: LoadingComponent}),
         "layout": false,
         "exact": true
       },
       {
         "path": "/student",
-        "name": "Sinh viên",
+        "name": "student",
         "component": dynamic({ loader: () => import(/* webpackChunkName: 'p__Student' */'D:/FINAL WEB/frontend/src/pages/Student'), loading: LoadingComponent}),
         "access": "canStudent",
         "exact": true
       },
       {
         "path": "/admin",
-        "name": "Quản trị viên",
+        "name": "admin",
         "component": dynamic({ loader: () => import(/* webpackChunkName: 'p__Admin' */'D:/FINAL WEB/frontend/src/pages/Admin'), loading: LoadingComponent}),
         "access": "canAdmin",
         "exact": true

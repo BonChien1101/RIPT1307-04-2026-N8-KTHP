@@ -3,7 +3,7 @@
  * Handles all authentication-related API calls
  */
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_URL = `${process.env.API_URL}/api`;
 
 export const authService = {
   /**
@@ -48,7 +48,13 @@ export const authService = {
    */
   getCurrentUser: () => {
     const user = localStorage.getItem('user');
-    return user ? JSON.parse(user) : null;
+    if (!user || user === 'undefined' || user === 'null') return null;
+    try {
+      return JSON.parse(user);
+    } catch (error) {
+      localStorage.removeItem('user');
+      return null;
+    }
   },
 
   /**

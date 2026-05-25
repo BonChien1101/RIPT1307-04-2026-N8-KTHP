@@ -30,9 +30,7 @@ import {
   SaveOutlined,
   BarChartOutlined,
   BgColorsOutlined,
-  TeamOutlined,
 } from '@ant-design/icons';
-import UserManagement from './UserManagement/index';
 import './styles.less';
 
 const { Header, Content, Sider } = Layout;
@@ -40,20 +38,17 @@ const { Header, Content, Sider } = Layout;
 interface Equipment {
   id: number;
   name: string;
-  quantity: number;
-  borrowed: number;
+  total_quantity: number;
+  available_quantity: number;
   description: string;
 }
 
 interface BorrowRequest {
   id: number;
-  studentName: string;
-  studentEmail: string;
-  equipmentName: string;
-  quantity: number;
-  borrowDate: string;
-  returnDate: string;
-  status: 'pending' | 'approved' | 'rejected' | 'returned';
+  user_id: number;
+  borrow_date: string;
+  expected_return_date: string;
+  status: 'pending' | 'approved' | 'rejected' | 'borrowed' | 'returned';
 }
 
 const Admin: React.FC = () => {
@@ -67,6 +62,7 @@ const Admin: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
   const [user, setUser] = useState<any>(null);
+  const apiUrl = `${process.env.API_URL}/api`;
   const [stats, setStats] = useState({
     totalEquipment: 0,
     totalBorrowed: 0,
@@ -75,12 +71,19 @@ const Admin: React.FC = () => {
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
-    if (userData) {
-      const parsedUser = JSON.parse(userData);
-      if (parsedUser.role !== 'admin') {
+    if (userData && userData !== 'undefined' && userData !== 'null') {
+      try {
+        const parsedUser = JSON.parse(userData);
+        if (parsedUser.role !== 'admin') {
+          window.location.hash = '#/';
+        }
+        setUser(parsedUser);
+      } catch (error) {
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
         window.location.hash = '#/';
+        return;
       }
-      setUser(parsedUser);
     } else {
       window.location.hash = '#/';
     }
@@ -93,14 +96,14 @@ const Admin: React.FC = () => {
   const fetchBorrowRequests = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/borrow/requests', {
+      const response = await fetch(`${apiUrl}/borrow-requests`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
       if (response.ok) {
-        const data = await response.json();
-        setBorrowRequests(data);
+        const payload = await response.json();
+        setBorrowRequests(payload?.data || []);
       }
     } catch (error) {
       message.error('Lỗi tải danh sách yêu cầu!');
@@ -111,14 +114,14 @@ const Admin: React.FC = () => {
   const fetchEquipment = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/equipments', {
+      const response = await fetch(`${apiUrl}/equipments`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
       if (response.ok) {
-        const data = await response.json();
-        setEquipment(data);
+        const payload = await response.json();
+        setEquipment(payload?.data || []);
       }
     } catch (error) {
       message.error('Lỗi tải danh sách thiết bị!');
@@ -129,14 +132,19 @@ const Admin: React.FC = () => {
   const fetchStats = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/statistics/overview', {
+      const response = await fetch(`${apiUrl}/statistics/dashboard`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
       if (response.ok) {
-        const data = await response.json();
-        setStats(data);
+        const payload = await response.json();
+        const data = payload?.data || {};
+        setStats({
+          totalEquipment: data.tongThietBi || 0,
+          totalBorrowed: data.tongYeuCau || 0,
+          pendingRequests: data.dangChoDuyet || 0,
+        });
       }
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -147,9 +155,9 @@ const Admin: React.FC = () => {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(
-        `http://localhost:5000/api/borrow/${requestId}/approve`,
+        `${apiUrl}/borrow-requests/${requestId}/approve`,
         {
-          method: 'PUT',
+          method: 'PATCH',
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -173,9 +181,9 @@ const Admin: React.FC = () => {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(
-        `http://localhost:5000/api/borrow/${requestId}/reject`,
+        `${apiUrl}/borrow-requests/${requestId}/reject`,
         {
-          method: 'PUT',
+          method: 'PATCH',
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -199,13 +207,19 @@ const Admin: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/equipments', {
+      const response = await fetch(`${apiUrl}/equipments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          name: values.name,
+          description: values.description,
+          total_quantity: values.quantity,
+          available_quantity: values.quantity,
+          status: 'available',
+        }),
       });
 
       if (response.ok) {
@@ -228,7 +242,7 @@ const Admin: React.FC = () => {
   const handleDeleteEquipment = async (equipmentId: number) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/equipments/${equipmentId}`, {
+      const response = await fetch(`${apiUrl}/equipments/${equipmentId}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -258,34 +272,19 @@ const Admin: React.FC = () => {
 
   const requestColumns = [
     {
-      title: 'Sinh Viên',
-      dataIndex: 'studentName',
-      key: 'studentName',
-    },
-    {
-      title: 'Email',
-      dataIndex: 'studentEmail',
-      key: 'studentEmail',
-    },
-    {
-      title: 'Thiết Bị',
-      dataIndex: 'equipmentName',
-      key: 'equipmentName',
-    },
-    {
-      title: 'Số Lượng',
-      dataIndex: 'quantity',
-      key: 'quantity',
+      title: 'Mã Người Dùng',
+      dataIndex: 'user_id',
+      key: 'user_id',
     },
     {
       title: 'Ngày Mượn',
-      dataIndex: 'borrowDate',
-      key: 'borrowDate',
+      dataIndex: 'borrow_date',
+      key: 'borrow_date',
     },
     {
       title: 'Ngày Trả',
-      dataIndex: 'returnDate',
-      key: 'returnDate',
+      dataIndex: 'expected_return_date',
+      key: 'expected_return_date',
     },
     {
       title: 'Trạng Thái',
@@ -295,6 +294,7 @@ const Admin: React.FC = () => {
         const statusMap: any = {
           pending: <Badge status="processing" text="Chờ Phê Duyệt" />,
           approved: <Badge status="success" text="Đã Phê Duyệt" />,
+          borrowed: <Badge status="warning" text="Đang Mượn" />,
           rejected: <Badge status="error" text="Bị Từ Chối" />,
           returned: <Badge status="default" text="Đã Trả" />,
         };
@@ -347,18 +347,18 @@ const Admin: React.FC = () => {
     },
     {
       title: 'Tổng Số Lượng',
-      dataIndex: 'quantity',
-      key: 'quantity',
+      dataIndex: 'total_quantity',
+      key: 'total_quantity',
     },
     {
       title: 'Đã Mượn',
-      dataIndex: 'borrowed',
       key: 'borrowed',
+      render: (_: any, record: Equipment) => record.total_quantity - record.available_quantity,
     },
     {
       title: 'Còn Lại',
       key: 'remaining',
-      render: (_: any, record: Equipment) => record.quantity - record.borrowed,
+      render: (_: any, record: Equipment) => record.available_quantity,
     },
     {
       title: 'Hành Động',
@@ -378,13 +378,28 @@ const Admin: React.FC = () => {
     },
   ];
 
+  const userMenuItems = [
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: 'Đăng Xuất',
+    },
+  ];
+
   const userMenu = (
-    <Menu>
-      <Menu.Item key="logout" onClick={handleLogout}>
-        <LogoutOutlined /> Đăng Xuất
-      </Menu.Item>
-    </Menu>
+    <Menu
+      items={userMenuItems}
+      onClick={(e) => {
+        if (e.key === 'logout') handleLogout();
+      }}
+    />
   );
+
+  const siderItems = [
+    { key: 'overview', icon: <BarChartOutlined />, label: 'Tổng Quan' },
+    { key: 'requests', icon: <SaveOutlined />, label: 'Yêu Cầu Mượn' },
+    { key: 'equipment', icon: <BgColorsOutlined />, label: 'Quản Lý Thiết Bị' },
+  ];
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -397,7 +412,7 @@ const Admin: React.FC = () => {
           <Dropdown overlay={userMenu}>
             <div className="user-info">
               <Avatar icon={<UserOutlined />} />
-              <span style={{ marginLeft: 10 }}>{user?.name || 'Quản Trị Viên'}</span>
+              <span style={{ marginLeft: 10 }}>{user?.full_name || user?.name || 'Quản Trị Viên'}</span>
             </div>
           </Dropdown>
         </div>
@@ -409,21 +424,9 @@ const Admin: React.FC = () => {
             mode="inline"
             selectedKeys={[activeTab]}
             onClick={(e) => setActiveTab(e.key)}
+            items={siderItems}
             style={{ height: '100%', borderRight: 0 }}
-          >
-            <Menu.Item key="overview" icon={<BarChartOutlined />}>
-              Tổng Quan
-            </Menu.Item>
-            <Menu.Item key="requests" icon={<SaveOutlined />}>
-              Yêu Cầu Mượn
-            </Menu.Item>
-            <Menu.Item key="equipment" icon={<BgColorsOutlined />}>
-              Quản Lý Thiết Bị
-            </Menu.Item>
-            <Menu.Item key="users" icon={<TeamOutlined />}>
-              Quản Lý Người Dùng
-            </Menu.Item>
-          </Menu>
+          />
         </Sider>
 
         <Layout>
@@ -498,7 +501,6 @@ const Admin: React.FC = () => {
               </Card>
             )}
 
-            {activeTab === 'users' && <UserManagement />}
           </Content>
         </Layout>
       </Layout>

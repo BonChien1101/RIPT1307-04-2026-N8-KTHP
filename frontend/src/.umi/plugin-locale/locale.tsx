@@ -7,7 +7,6 @@ import moment from 'moment';
 import 'moment/locale/vi';
 import { RawIntlProvider, getLocale, getDirection , setIntl, getIntl, localeInfo } from './localeExports';
 
-import antd_es_locale_vi_VN from 'antd/es/locale/vi_VN';
 
 // @ts-ignore
 export const event = new EventEmitter();
@@ -17,7 +16,7 @@ export const LANG_CHANGE_EVENT = Symbol('LANG_CHANGE');
 export function _onCreate() {
   const locale = getLocale();
   if (moment?.locale) {
-    moment.locale(localeInfo[locale]?.momentLocale || 'vi');
+    moment.locale(localeInfo[locale]?.momentLocale || '');
   }
   setIntl(locale);
 }
@@ -49,7 +48,6 @@ export const _LocaleContainer = (props:any) => {
   }, []);
 
   const defaultAntdLocale = {
-    ...antd_es_locale_vi_VN,
   }
   const direction = getDirection();
 
