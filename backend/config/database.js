@@ -1,4 +1,5 @@
-const { Sequelize } = require("sequelize");
+const path = require('path');
+const { Sequelize } = require('sequelize');
 
 const parseBoolean = (v) => {
   if (v == null) return false;
@@ -12,28 +13,32 @@ const dbRejectUnauthorized = process.env.DB_SSL_REJECT_UNAUTHORIZED
   ? parseBoolean(process.env.DB_SSL_REJECT_UNAUTHORIZED)
   : false;
 
-const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
-  process.env.DB_PASSWORD,
-  {
+const dialect = String(process.env.DB_DIALECT || 'sqlite').trim().toLowerCase();
+
+let sequelize;
+
+if (dialect === 'mysql') {
+  sequelize = new Sequelize(process.env.DB_NAME, process.env.DB_USER, process.env.DB_PASSWORD, {
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
-    dialect: "mysql",
+    dialect: 'mysql',
     ...(dbSsl
       ? {
           dialectOptions: {
             ssl: {
-              // Aiven thường yêu cầu SSL. Nếu không truyền CA cert thì vẫn bật SSL ở mức cơ bản.
-              ...(dbCaCert ? { ca: dbCaCert.replace(/\\n/g, '\n') } : {}),
-              // Một số môi trường Node báo "self signed certificate in certificate chain" dù đã có CA.
-              // Mặc định để false cho dev; có thể bật lại bằng DB_SSL_REJECT_UNAUTHORIZED=true.
+              ...(dbCaCert ? { ca: dbCaCert.replace(/\n/g, '\n') } : {}),
               rejectUnauthorized: dbRejectUnauthorized,
             },
           },
         }
       : {}),
-  }
-);
+  });
+} else {
+  sequelize = new Sequelize({
+    dialect: 'sqlite',
+    storage: process.env.DB_STORAGE || path.resolve(__dirname, '../borrowx.sqlite'),
+    logging: false,
+  });
+}
 
 module.exports = sequelize;

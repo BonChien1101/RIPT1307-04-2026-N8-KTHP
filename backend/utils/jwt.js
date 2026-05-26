@@ -33,9 +33,12 @@ const parseExp = (expiresIn) => {
 	return n * mul;
 };
 
+const getJwtSecret = () => {
+	return process.env.JWT_SECRET || 'borrowx-local-jwt-secret';
+};
+
 const signToken = (payload, { expiresIn = '7d' } = {}) => {
-	const secret = process.env.JWT_SECRET;
-	if (!secret) throw new Error('JWT_SECRET is missing in environment');
+	const secret = getJwtSecret();
 
 	const header = { alg: 'HS256', typ: 'JWT' };
 	const iat = Math.floor(Date.now() / 1000);
@@ -50,8 +53,7 @@ const signToken = (payload, { expiresIn = '7d' } = {}) => {
 };
 
 const verifyToken = (token) => {
-	const secret = process.env.JWT_SECRET;
-	if (!secret) throw new Error('JWT_SECRET is missing in environment');
+	const secret = getJwtSecret();
 
 	const parts = String(token || '').split('.');
 	if (parts.length !== 3) throw new Error('Invalid token');

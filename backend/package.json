@@ -4,11 +4,13 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-  "start": "node app.js",
-  "dev": "nodemon app.js",
-  "db:schema": "node scripts/importSchema.js",
-  "db:seed": "node scripts/seed.js",
-  "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "db:init": "node scripts/importSchema.js",
+    "db:schema": "node scripts/importSchema.js",
+    "db:migrate": "node scripts/runMigration.js",
+    "db:seed": "node scripts/seed.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
@@ -18,8 +20,10 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "morgan": "^1.10.1",
-    "mysql2": "^3.22.3",
-    "sequelize": "^6.37.8"
+    "mysql2": "^3.14.3",
+    "ript-project-root": "file:..",
+    "sequelize": "^6.37.8",
+    "sqlite3": "^5.1.7"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useContext } from 'react';
 import {
   Layout,
   Menu,
@@ -25,9 +25,11 @@ import {
   DeleteOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
+  BgColorsOutlined,
   ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import './styles.less';
+import { isAdminRole } from '../../utils/auth';
 
 const { Header, Content, Sider } = Layout;
 
@@ -63,7 +65,12 @@ const Student: React.FC = () => {
     const userData = localStorage.getItem('user');
     if (userData && userData !== 'undefined' && userData !== 'null') {
       try {
-        setUser(JSON.parse(userData));
+        const parsedUser = JSON.parse(userData);
+        if (isAdminRole(parsedUser.role)) {
+          window.location.hash = '#/admin';
+          return;
+        }
+        setUser(parsedUser);
       } catch (error) {
         localStorage.removeItem('user');
         localStorage.removeItem('token');
@@ -226,12 +233,12 @@ const Student: React.FC = () => {
   ];
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout className="student-page-shell" style={{ minHeight: '100vh' }}>
       <Header className="student-header">
         <div className="header-content">
           <div className="header-title">
             <HomeOutlined style={{ fontSize: 24, marginRight: 10 }} />
-            <span>Hệ Thống Quản Lý Mượn Đồ Dùng - Sinh Viên</span>
+            <span>BorrowX - Cổng Sinh Viên</span>
           </div>
           <Dropdown overlay={userMenu}>
             <div className="user-info">
@@ -242,13 +249,23 @@ const Student: React.FC = () => {
         </div>
       </Header>
 
-      <Layout>
-        <Sider width={200} className="student-sider">
-          <Menu mode="inline" selectedKeys={[activeTab]} onClick={(e) => setActiveTab(e.key)} items={siderItems} style={{ height: '100%', borderRight: 0 }} />
+      <Layout className="student-body-shell">
+        <Sider width={228} className="student-sider">
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <div style={{ flex: 1 }}>
+              <Menu mode="inline" selectedKeys={[activeTab]} onClick={(e) => setActiveTab(e.key)} items={siderItems} style={{ height: '100%', borderRight: 0 }} />
+            </div>
+            <div style={{ padding: 12, borderTop: '1px solid rgba(0,0,0,0.03)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span className="text-muted">Giao diện</span>
+                <span style={{ fontWeight: 600, color: 'var(--text)' }}>Sáng mặc định</span>
+              </div>
+            </div>
+          </div>
         </Sider>
 
-        <Layout>
-          <Content style={{ padding: '24px' }}>
+        <Layout className="student-content-shell">
+          <Content className="student-content" style={{ padding: '24px 28px' }}>
             {activeTab === 'equipment' && (<Card title="Danh Sách Thiết Bị Có Sẵn" className="content-card"><Table columns={equipmentColumns} dataSource={equipment} rowKey="id" pagination={{ pageSize: 10 }} loading={loading} /></Card>)}
             {activeTab === 'history' && (<Card title="Lịch Sử Yêu Cầu Mượn" className="content-card"><Table columns={borrowHistoryColumns} dataSource={borrowHistory} rowKey="id" pagination={{ pageSize: 10 }} loading={loading} /></Card>)}
           </Content>

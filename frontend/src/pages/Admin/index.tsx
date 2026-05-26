@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   Layout,
   Menu,
@@ -19,6 +19,7 @@ import {
   Dropdown,
   Select,
   Space,
+  Progress,
 } from 'antd';
 import {
   DashboardOutlined,
@@ -34,6 +35,7 @@ import {
   BgColorsOutlined,
 } from '@ant-design/icons';
 import './styles.less';
+import { isStudentRole } from '../../utils/auth';
 
 const { Header, Content, Sider } = Layout;
 
@@ -72,7 +74,7 @@ interface EquipmentDetail extends Equipment {
 }
 
 const Admin: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('requests');
+  const [activeTab, setActiveTab] = useState('overview');
   const [borrowRequests, setBorrowRequests] = useState<BorrowRequest[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [isEquipmentModalVisible, setIsEquipmentModalVisible] = useState(false);
@@ -98,12 +100,21 @@ const Admin: React.FC = () => {
     pendingRequests: 0,
   });
 
+  const totalInventory = equipment.reduce((sum, item) => sum + (item.total_quantity || 0), 0);
+  const totalAvailable = equipment.reduce((sum, item) => sum + (item.available_quantity || 0), 0);
+  const totalBorrowedItems = Math.max(totalInventory - totalAvailable, 0);
+  const usageRate = totalInventory > 0 ? Math.round((totalBorrowedItems / totalInventory) * 100) : 0;
+  const recentRequests = [...borrowRequests]
+    .sort((left, right) => new Date(right.borrow_date).getTime() - new Date(left.borrow_date).getTime())
+    .slice(0, 5);
+  const maxTopBorrow = Math.max(...topEquipment.map((item) => item.tongMuon || 0), 0);
+
   useEffect(() => {
     const userData = localStorage.getItem('user');
     if (userData && userData !== 'undefined' && userData !== 'null') {
       try {
         const parsedUser = JSON.parse(userData);
-        if (parsedUser.role !== 'admin') {
+        if (isStudentRole(parsedUser.role)) {
           window.location.hash = '#/';
         }
         setUser(parsedUser);
@@ -122,6 +133,8 @@ const Admin: React.FC = () => {
     fetchStats();
     fetchTopBorrowedEquipment(new Date().getFullYear(), new Date().getMonth() + 1);
   }, []);
+
+  
 
   const fetchBorrowRequests = async () => {
     try {
@@ -612,13 +625,147 @@ const Admin: React.FC = () => {
     { key: 'equipment', icon: <BgColorsOutlined />, label: 'Quản Lý Thiết Bị' },
   ];
 
+  const renderDashboard = () => (
+    <div className="admin-dashboard">
+      <Card className="dashboard-hero" bordered={false}>
+        <Row gutter={[24, 24]} align="middle">
+          <Col xs={24} lg={14}>
+            <div className="dashboard-hero__content">
+              <div className="dashboard-hero__eyebrow">Tổng quan hệ thống</div>
+              <h2>Xin chào, {user?.full_name || user?.name || 'Quản trị viên'}</h2>
+              <p>
+                Bạn đang quản lý {stats.totalEquipment} thiết bị, {stats.pendingRequests} yêu cầu chờ duyệt và {stats.totalBorrowed} lượt mượn đã ghi nhận.
+              </p>
+              <Space wrap>
+                <Button type="primary" onClick={() => setActiveTab('requests')}>
+                  Xem yêu cầu chờ duyệt
+                </Button>
+                <Button onClick={() => setActiveTab('equipment')}>Quản lý thiết bị</Button>
+              </Space>
+            </div>
+          </Col>
+          <Col xs={24} lg={10}>
+            <div className="dashboard-hero__ring">
+              <Progress type="circle" percent={usageRate} strokeColor="var(--primary-start)" trailColor="rgba(255,255,255,0.18)" />
+              <div className="dashboard-hero__ring-label">
+                <strong>{usageRate}%</strong>
+                <span>Tỷ lệ thiết bị đang được dùng</span>
+              </div>
+            </div>
+          </Col>
+        </Row>
+      </Card>
+
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col xs={24} sm={12} lg={6}>
+          <Card className="dashboard-metric" bordered={false}>
+            <Statistic title="Tổng thiết bị" value={stats.totalEquipment} prefix={<BgColorsOutlined />} />
+            <span className="dashboard-metric__hint">Tất cả thiết bị trong kho</span>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card className="dashboard-metric" bordered={false}>
+            <Statistic title="Thiết bị sẵn sàng" value={totalAvailable} prefix={<CheckCircleOutlined />} />
+            <span className="dashboard-metric__hint">Có thể cho mượn ngay</span>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card className="dashboard-metric" bordered={false}>
+            <Statistic title="Đang được mượn" value={totalBorrowedItems} prefix={<SaveOutlined />} />
+            <span className="dashboard-metric__hint">Đang được sử dụng thực tế</span>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card className="dashboard-metric dashboard-metric--danger" bordered={false}>
+            <Statistic title="Yêu cầu chờ" value={stats.pendingRequests} prefix={<CloseCircleOutlined />} />
+            <span className="dashboard-metric__hint">Cần xử lý trong ngày</span>
+          </Card>
+        </Col>
+      </Row>
+
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col xs={24} lg={10}>
+          <Card title="Tình trạng kho thiết bị" className="dashboard-panel" bordered={false}>
+            <div className="dashboard-panel__stats">
+              <div>
+                <strong>{totalAvailable}</strong>
+                <span>Còn sẵn sàng</span>
+              </div>
+              <div>
+                <strong>{totalBorrowedItems}</strong>
+                <span>Đang sử dụng</span>
+              </div>
+            </div>
+            <Progress percent={usageRate} strokeColor="var(--primary-start)" showInfo={false} />
+            <p className="dashboard-panel__note">
+              Hệ thống đang sử dụng {usageRate}% tổng số thiết bị, còn {totalAvailable} thiết bị có thể phục vụ ngay.
+            </p>
+          </Card>
+        </Col>
+        <Col xs={24} lg={14}>
+          <Card title="Top thiết bị được mượn nhiều" className="dashboard-panel" bordered={false}>
+            <div className="dashboard-list">
+              {topEquipment.length > 0 ? (
+                topEquipment.map((item, index) => {
+                  const percent = maxTopBorrow > 0 ? Math.round((item.tongMuon / maxTopBorrow) * 100) : 0;
+                  return (
+                    <div className="dashboard-list__item" key={item.id}>
+                      <div className="dashboard-list__head">
+                        <span className="dashboard-list__rank">#{index + 1}</span>
+                        <div>
+                          <strong>{item.name}</strong>
+                          <span>{item.tongMuon} lượt mượn</span>
+                        </div>
+                      </div>
+                      <Progress percent={percent} showInfo={false} strokeColor="var(--accent-start)" />
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="dashboard-panel__empty">Chưa có dữ liệu thống kê thiết bị mượn nhiều.</p>
+              )}
+            </div>
+          </Card>
+        </Col>
+      </Row>
+
+      <Card title="Yêu cầu gần nhất" className="dashboard-panel" bordered={false} style={{ marginTop: 16 }}>
+        <Table
+          rowKey="id"
+          dataSource={recentRequests}
+          pagination={false}
+          columns={[
+            { title: 'Mã yêu cầu', dataIndex: 'id', key: 'id' },
+            { title: 'Mã người dùng', dataIndex: 'user_id', key: 'user_id' },
+            { title: 'Ngày mượn', dataIndex: 'borrow_date', key: 'borrow_date' },
+            {
+              title: 'Trạng thái',
+              dataIndex: 'status',
+              key: 'status',
+              render: (status: string) => {
+                const statusMap: Record<string, JSX.Element> = {
+                  pending: <Badge status="processing" text="Chờ phê duyệt" />,
+                  approved: <Badge status="success" text="Đã phê duyệt" />,
+                  borrowed: <Badge status="warning" text="Đang mượn" />,
+                  rejected: <Badge status="error" text="Bị từ chối" />,
+                  returned: <Badge status="default" text="Đã trả" />,
+                };
+                return statusMap[status] || status;
+              },
+            },
+          ]}
+        />
+      </Card>
+    </div>
+  );
+
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout className="admin-page-shell" style={{ minHeight: '100vh' }}>
       <Header className="admin-header">
         <div className="header-content">
           <div className="header-title">
             <DashboardOutlined style={{ fontSize: 24, marginRight: 10 }} />
-            <span>Hệ Thống Quản Lý Mượn Đồ Dùng - Quản Trị Viên</span>
+            <span>BorrowX - Bảng Điều Khiển Quản Trị</span>
           </div>
           <Dropdown overlay={userMenu}>
             <div className="user-info">
@@ -629,82 +776,30 @@ const Admin: React.FC = () => {
         </div>
       </Header>
 
-      <Layout>
-        <Sider width={200} className="admin-sider">
-          <Menu
-            mode="inline"
-            selectedKeys={[activeTab]}
-            onClick={(e) => setActiveTab(e.key)}
-            items={siderItems}
-            style={{ height: '100%', borderRight: 0 }}
-          />
+      <Layout className="admin-body-shell">
+        <Sider width={228} className="admin-sider">
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <div style={{ flex: 1 }}>
+              <Menu
+                mode="inline"
+                selectedKeys={[activeTab]}
+                onClick={(e) => setActiveTab(e.key)}
+                items={siderItems}
+                style={{ height: '100%', borderRight: 0 }}
+              />
+            </div>
+            <div style={{ padding: 12, borderTop: '1px solid rgba(0,0,0,0.03)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span className="text-muted">Giao diện</span>
+                <span style={{ fontWeight: 600, color: 'var(--text)' }}>Sáng mặc định</span>
+              </div>
+            </div>
+          </div>
         </Sider>
 
-        <Layout>
-          <Content style={{ padding: '24px' }}>
-            {activeTab === 'overview' && (
-              <div>
-                <Row gutter={16} style={{ marginBottom: 24 }}>
-                  <Col span={8}>
-                    <Card>
-                      <Statistic
-                        title="Tổng Thiết Bị"
-                        value={stats.totalEquipment}
-                        prefix={<BgColorsOutlined />}
-                      />
-                    </Card>
-                  </Col>
-                  <Col span={8}>
-                    <Card>
-                      <Statistic
-                        title="Đã Mượn"
-                        value={stats.totalBorrowed}
-                        prefix={<SaveOutlined />}
-                      />
-                    </Card>
-                  </Col>
-                  <Col span={8}>
-                    <Card>
-                      <Statistic
-                        title="Yêu Cầu Chờ"
-                        value={stats.pendingRequests}
-                        prefix={<CheckCircleOutlined />}
-                        valueStyle={{ color: '#ff4d4f' }}
-                      />
-                    </Card>
-                  </Col>
-                </Row>
-
-                <Card
-                  title="Thiết Bị Mượn Nhiều Trong Tháng"
-                  className="content-card"
-                  extra={
-                    <Space>
-                      <InputNumber min={2000} max={2100} value={statYear} onChange={(value) => setStatYear(Number(value) || new Date().getFullYear())} />
-                      <InputNumber min={1} max={12} value={statMonth} onChange={(value) => setStatMonth(Number(value) || new Date().getMonth() + 1)} />
-                      <Button
-                        type="primary"
-                        onClick={() => fetchTopBorrowedEquipment(statYear, statMonth)}
-                      >
-                        Xem Thống Kê
-                      </Button>
-                    </Space>
-                  }
-                >
-                  <Table
-                    rowKey="id"
-                    loading={topEquipmentLoading}
-                    dataSource={topEquipment}
-                    pagination={false}
-                    columns={[
-                      { title: 'Mã Thiết Bị', dataIndex: 'id', key: 'id' },
-                      { title: 'Tên Thiết Bị', dataIndex: 'name', key: 'name' },
-                      { title: 'Số Lần Mượn', dataIndex: 'tongMuon', key: 'tongMuon' },
-                    ]}
-                  />
-                </Card>
-              </div>
-            )}
+        <Layout className="admin-content-shell">
+          <Content className="admin-content" style={{ padding: '24px 28px' }}>
+            {activeTab === 'overview' && renderDashboard()}
 
             {activeTab === 'requests' && (
               <Card title="Danh Sách Yêu Cầu Mượn" className="content-card">

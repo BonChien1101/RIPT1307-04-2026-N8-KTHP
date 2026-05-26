@@ -1,6 +1,7 @@
 import { defineConfig } from 'umi';
 
 export default defineConfig({
+  title: 'BorrowX',
   layout: {
     siderWidth: 256,
     locale: true,
@@ -33,19 +34,22 @@ export default defineConfig({
   routes: [
     {
       path: '/',
-      name: 'login',
+      name: 'Đăng nhập',
+      icon: 'LoginOutlined',
       component: './Login',
       layout: false,
     },
     {
       path: '/student',
-      name: 'student',
+      name: 'Sinh viên',
+      icon: 'BookOutlined',
       component: './Student', 
       access: 'canStudent',
     },
     {
       path: '/admin',
-      name: 'admin',
+      name: 'Quản trị viên',
+      icon: 'CrownOutlined',
       component: './Admin', 
       access: 'canAdmin',
     },

@@ -1,6 +1,20 @@
 const sequelize = require('../config/database');
 const { ok, fail } = require('../utils/response');
 
+const monthFilter = (column, year, month) => {
+	if (sequelize.getDialect() === 'mysql') {
+		return {
+			sql: `YEAR(${column}) = ? AND MONTH(${column}) = ?`,
+			params: [String(year), String(month)],
+		};
+	}
+
+	return {
+		sql: `strftime('%Y', ${column}) = ? AND strftime('%m', ${column}) = ?`,
+		params: [String(year), String(month).padStart(2, '0')],
+	};
+};
+
 const dashboard = async (req, res) => {
 	try {
 		const [[tongThietBi]] = await sequelize.query('SELECT COUNT(*) as total FROM equipments');
@@ -32,13 +46,14 @@ const thongKeTheoThang = async (req, res) => {
 			return fail(res, 'Tham số year/month không hợp lệ', 'VALIDATION_ERROR', 400);
 		}
 
+		const filter = monthFilter('borrow_date', nam, thang);
 		const [rows] = await sequelize.query(
 			`SELECT DATE(borrow_date) as ngay, COUNT(*) as tong
 			 FROM borrow_requests
-			 WHERE YEAR(borrow_date) = ? AND MONTH(borrow_date) = ?
+			 WHERE ${filter.sql}
 			 GROUP BY DATE(borrow_date)
 			 ORDER BY ngay ASC`,
-			{ replacements: [nam, thang] }
+			{ replacements: filter.params }
 		);
 
 		return ok(res, rows, 'OK');
@@ -57,17 +72,18 @@ const topThietBi = async (req, res) => {
 			return fail(res, 'Tham số year/month không hợp lệ', 'VALIDATION_ERROR', 400);
 		}
 
+		const filter = monthFilter('br.borrow_date', nam, thang);
 		const [rows] = await sequelize.query(
 			`SELECT e.id, e.name, SUM(bi.quantity) as tongMuon
 			 FROM borrow_items bi
 			 JOIN borrow_requests br ON br.id = bi.request_id
 			 JOIN equipments e ON e.id = bi.equipment_id
-			 WHERE YEAR(br.borrow_date) = ? AND MONTH(br.borrow_date) = ?
+			 WHERE ${filter.sql}
 			 AND br.status IN ('approved','borrowed','returned')
 			 GROUP BY e.id, e.name
 			 ORDER BY tongMuon DESC
 			 LIMIT ?`,
-			{ replacements: [nam, thang, gioiHan] }
+			{ replacements: [...filter.params, gioiHan] }
 		);
 
 		return ok(res, rows, 'OK');

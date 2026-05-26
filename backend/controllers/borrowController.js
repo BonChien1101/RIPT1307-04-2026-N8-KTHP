@@ -1,5 +1,8 @@
 const sequelize = require('../config/database');
 const { ok, fail } = require('../utils/response');
+const { getInsertedId, getAffectedRows } = require('../utils/sqlCompat');
+
+const getCurrentDateSql = () => (sequelize.getDialect() === 'mysql' ? 'CURDATE()' : "DATE('now')");
 
 // Trạng thái :
 // pending -> approved | rejected
@@ -17,13 +20,13 @@ const taoYeuCau = async (req, res) => {
 		}
 
 		const ketQua = await sequelize.transaction(async (t) => {
-			const [rq] = await sequelize.query(
+			const [rq, rqMeta] = await sequelize.query(
 				`INSERT INTO borrow_requests (user_id, borrow_date, expected_return_date, status, note, created_at, updated_at)
-				 VALUES (?, ?, ?, 'pending', ?, NOW(), NOW())`,
+				 VALUES (?, ?, ?, 'pending', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
 				{ replacements: [nguoiDungId, borrowDate, returnDate, note || null], transaction: t }
 			);
 
-			const requestId = rq.insertId;
+			const requestId = getInsertedId(rq, rqMeta);
 			for (const item of items) {
 				const thietBiId = Number(item?.equipment_id);
 				const soLuong = Number(item?.quantity || 1);
@@ -143,14 +146,14 @@ const duyet = async (req, res) => {
 		const requestId = Number(req.params.id);
 		if (!requestId) return fail(res, 'ID yêu cầu không hợp lệ', 'VALIDATION_ERROR', 400);
 
-		const [result] = await sequelize.query(
+			const [result, resultMeta] = await sequelize.query(
 			`UPDATE borrow_requests
-			 SET status = 'approved', approved_by = ?, updated_at = NOW()
+				 SET status = 'approved', approved_by = ?, updated_at = CURRENT_TIMESTAMP
 			 WHERE id = ? AND status = 'pending'`,
 			{ replacements: [nguoiDuyetId, requestId] }
 		);
 
-		if (!result.affectedRows) {
+			if (!getAffectedRows(result, resultMeta)) {
 			return fail(res, 'Không tìm thấy yêu cầu hoặc không ở trạng thái chờ duyệt', 'NOT_FOUND', 404);
 		}
 		return ok(res, { id: requestId }, 'Đã duyệt yêu cầu');
@@ -168,14 +171,14 @@ const tuChoi = async (req, res) => {
 		if (!requestId) return fail(res, 'ID yêu cầu không hợp lệ', 'VALIDATION_ERROR', 400);
 		const { reason, note } = req.body || {};
 
-		const [result] = await sequelize.query(
+		const [result, resultMeta] = await sequelize.query(
 			`UPDATE borrow_requests
-			 SET status = 'rejected', approved_by = ?, note = ?, updated_at = NOW()
+			 SET status = 'rejected', approved_by = ?, note = ?, updated_at = CURRENT_TIMESTAMP
 			 WHERE id = ? AND status = 'pending'`,
 			{ replacements: [nguoiDuyetId, note || reason || null, requestId] }
 		);
 
-		if (!result.affectedRows) {
+		if (!getAffectedRows(result, resultMeta)) {
 			return fail(res, 'Không tìm thấy yêu cầu hoặc không ở trạng thái chờ duyệt', 'NOT_FOUND', 404);
 		}
 		return ok(res, { id: requestId }, 'Đã từ chối yêu cầu');
@@ -204,17 +207,17 @@ const ghiNhanDaMuon = async (req, res) => {
 			if (!items.length) throw new Error('REQUEST_NOT_FOUND');
 
 			for (const it of items) {
-				const [r] = await sequelize.query(
+				const [r, rMeta] = await sequelize.query(
 					`UPDATE equipments
 					 SET available_quantity = available_quantity - ?
 					 WHERE id = ? AND available_quantity >= ?`,
 					{ replacements: [it.quantity, it.equipment_id, it.quantity], transaction: t }
 				);
-				if (!r.affectedRows) throw new Error('OUT_OF_STOCK');
+				if (!getAffectedRows(r, rMeta)) throw new Error('OUT_OF_STOCK');
 			}
 
 			await sequelize.query(
-				`UPDATE borrow_requests SET status = 'borrowed', updated_at = NOW() WHERE id = ?`,
+				`UPDATE borrow_requests SET status = 'borrowed', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
 				{ replacements: [requestId], transaction: t }
 			);
 		});
@@ -255,7 +258,7 @@ const ghiNhanDaTra = async (req, res) => {
 			}
 
 			await sequelize.query(
-				`UPDATE borrow_requests SET status = 'returned', actual_return_date = CURDATE(), updated_at = NOW() WHERE id = ?`,
+				`UPDATE borrow_requests SET status = 'returned', actual_return_date = ${getCurrentDateSql()}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
 				{ replacements: [requestId], transaction: t }
 			);
 		});
