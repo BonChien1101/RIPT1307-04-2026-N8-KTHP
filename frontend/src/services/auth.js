@@ -2,8 +2,9 @@
  * Authentication Service
  * Handles all authentication-related API calls
  */
+import { getApiUrl } from '../utils/api';
 
-const API_URL = `${process.env.API_URL}/api`;
+const API_URL = getApiUrl();
 
 export const authService = {
   /**

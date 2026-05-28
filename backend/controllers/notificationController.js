@@ -39,4 +39,20 @@ const danhDauDaDoc = async (req, res) => {
   }
 };
 
-module.exports = { danhSach, danhDauDaDoc };
+const readAll = async (req, res) => {
+  try {
+    const nguoiDungId = req.user?.id;
+    if (!nguoiDungId) return fail(res, 'Bạn cần đăng nhập', 'AUTH_REQUIRED', 401);
+
+    await sequelize.query(
+      'UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0',
+      { replacements: [nguoiDungId] }
+    );
+
+    return ok(res, null, 'Đã đánh dấu tất cả đã đọc');
+  } catch (e) {
+    return fail(res, 'Lỗi server', 'INTERNAL_ERROR', 500);
+  }
+};
+
+module.exports = { danhSach, danhDauDaDoc, readAll };

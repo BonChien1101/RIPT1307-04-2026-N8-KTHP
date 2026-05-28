@@ -57,6 +57,65 @@ const offsetDateSql = (days) => {
 	return days > 0 ? `DATE('now', '+${days} day')` : `DATE('now', '${days} day')`;
 };
 
+const createSampleEquipmentRows = (categoryRows) => {
+	const categories = {
+		Presentation: categoryRows.find((item) => item.name === 'Presentation')?.id,
+		Audio: categoryRows.find((item) => item.name === 'Audio')?.id,
+		Computer: categoryRows.find((item) => item.name === 'Computer')?.id,
+		Media: categoryRows.find((item) => item.name === 'Media')?.id,
+	};
+
+	const sampleGroups = [
+		{
+			category: 'Presentation',
+			prefix: 'Máy chiếu mẫu',
+			description: 'Thiết bị trình chiếu phục vụ lớp học, hội thảo và thuyết trình.',
+			totalStart: 2,
+			availableStart: 1,
+		},
+		{
+			category: 'Audio',
+			prefix: 'Bộ âm thanh mẫu',
+			description: 'Thiết bị âm thanh phục vụ giảng dạy, sự kiện và phòng họp.',
+			totalStart: 4,
+			availableStart: 3,
+		},
+		{
+			category: 'Computer',
+			prefix: 'Laptop mẫu',
+			description: 'Máy tính xách tay phục vụ thực hành, thuyết trình và demo.',
+			totalStart: 3,
+			availableStart: 2,
+		},
+		{
+			category: 'Media',
+			prefix: 'Camera mẫu',
+			description: 'Thiết bị quay chụp phục vụ truyền thông, lưu trữ và thực hành.',
+			totalStart: 2,
+			availableStart: 2,
+		},
+	];
+
+	const rows = [];
+	for (let index = 1; index <= 100; index += 1) {
+		const group = sampleGroups[(index - 1) % sampleGroups.length];
+		const suffix = String(index).padStart(3, '0');
+		const totalQuantity = group.totalStart + ((index - 1) % 4);
+		const availableQuantity = Math.min(group.availableStart + ((index - 1) % 3), totalQuantity);
+		rows.push([
+			`${group.prefix} ${suffix}`,
+			categories[group.category],
+			`${group.description} Mẫu số ${suffix}.`,
+			totalQuantity,
+			availableQuantity,
+			null,
+			'available',
+		]);
+	}
+
+	return rows;
+};
+
 const run = async () => {
 	await sequelize.authenticate();
 	await sequelize.sync({ alter: false });
@@ -94,6 +153,16 @@ const run = async () => {
 		 SELECT 'Laptop Dell', id, 'Laptop cho mượn', 3, 2, NULL, 'available' FROM categories WHERE name = 'Computer'
 		 UNION ALL
 		 SELECT 'Camera Sony', id, 'Camera quay phim', 2, 2, NULL, 'available' FROM categories WHERE name = 'Media'`
+	);
+
+	const [categoryRows] = await sequelize.query(`SELECT id, name FROM categories ORDER BY id ASC`);
+	const sampleEquipmentRows = createSampleEquipmentRows(categoryRows);
+	const equipmentPlaceholders = sampleEquipmentRows.map(() => '(?, ?, ?, ?, ?, ?, ?)').join(',\n');
+	const equipmentValues = sampleEquipmentRows.flat();
+	await sequelize.query(
+		`INSERT INTO equipments (name, category_id, description, total_quantity, available_quantity, image_url, status)
+		 VALUES ${equipmentPlaceholders}`,
+		{ replacements: equipmentValues }
 	);
 
 	const [eqRows1] = await sequelize.query(`SELECT id FROM equipments WHERE name='Projector Epson' LIMIT 1`);

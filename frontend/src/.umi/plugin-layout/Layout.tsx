@@ -35,7 +35,7 @@ export default props => {
   }, [initialInfo?.initialState, access]);
 
   const userConfig = {
-    ...{'name':'ant-design-pro','theme':'PRO','locale':true,'showBreadcrumb':true,'siderWidth':256},
+    ...{'name':'borrowx','theme':'PRO','locale':true,'showBreadcrumb':true,'siderWidth':256},
     ...runtimeConfig || {}
   };
 

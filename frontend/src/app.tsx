@@ -137,15 +137,9 @@ export function layout({ initialState }: any) {
     ),
     onPageChange: () => {
       const pathname = getActivePath();
-      const targetPath = getTargetPath(user?.role);
 
       if (!isAuthed) {
         if (pathname !== '/') history.push('/');
-        return;
-      }
-
-      if (pathname === '/' || pathname === '/login') {
-        history.push(targetPath);
         return;
       }
 

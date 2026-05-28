@@ -17,5 +17,6 @@ router.patch('/borrow-requests/:id/approve', authMiddleware, requireRole('admin'
 router.patch('/borrow-requests/:id/reject', authMiddleware, requireRole('admin'), borrowController.tuChoi);
 router.patch('/borrow-requests/:id/mark-borrowed', authMiddleware, requireRole('admin'), borrowController.ghiNhanDaMuon);
 router.patch('/borrow-requests/:id/mark-returned', authMiddleware, requireRole('admin'), borrowController.ghiNhanDaTra);
+router.post('/borrow-requests/:id/smart-approve', authMiddleware, requireRole('admin'), borrowController.smartApprove);
 
 module.exports = router;

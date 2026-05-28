@@ -3,11 +3,11 @@ import {
   createIntl,
   IntlShape,
   MessageDescriptor,
-} from 'D:/FINAL WEB/frontend/node_modules/react-intl';
+} from 'E:/BTL/RIPT1307-04-2026-N8-KTHP/frontend/node_modules/react-intl';
 import { ApplyPluginsType } from 'umi';
 import { event, LANG_CHANGE_EVENT } from './locale';
 // @ts-ignore
-import warning from 'D:/FINAL WEB/frontend/node_modules/warning/warning.js';
+import warning from 'E:/BTL/RIPT1307-04-2026-N8-KTHP/frontend/node_modules/warning/warning.js';
 
 import { plugin } from '../core/plugin';
 
@@ -34,14 +34,14 @@ export {
   defineMessages,
   injectIntl,
   useIntl,
-} from 'D:/FINAL WEB/frontend/node_modules/react-intl';
+} from 'E:/BTL/RIPT1307-04-2026-N8-KTHP/frontend/node_modules/react-intl';
 
 let g_intl: IntlShape;
 
 const useLocalStorage = true;
 
 import viVN0 from 'antd/es/locale/vi_VN';
-import lang_viVN0 from "D:/FINAL WEB/frontend/src/locales/vi-VN.ts";
+import lang_viVN0 from "E:/BTL/RIPT1307-04-2026-N8-KTHP/frontend/src/locales/vi-VN.ts";
 
 export const localeInfo: {[key: string]: any} = {
   'vi-VN': {
