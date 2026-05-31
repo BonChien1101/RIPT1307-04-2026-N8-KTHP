@@ -1,6 +1,7 @@
 import { authService } from './auth';
+import { getApiUrl } from '../utils/api';
 
-const API_URL = `${process.env.API_URL}/api`;
+const API_URL = getApiUrl();
 
 const getHeaders = () => ({
   'Content-Type': 'application/json',

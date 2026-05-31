@@ -1,5 +1,8 @@
 const sequelize = require('../config/database');
 const { ok, fail } = require('../utils/response');
+const { getInsertedId, getAffectedRows } = require('../utils/sqlCompat');
+
+const getCurrentDateSql = () => (sequelize.getDialect() === 'mysql' ? 'CURDATE()' : "DATE('now')");
 
 const { QueryTypes } = require('sequelize');
 
@@ -64,6 +67,7 @@ const taoYeuCau = async (req, res) => {
 		}
 
 		const ketQua = await sequelize.transaction(async (t) => {
+
 			let rq;
 			try {
 				rq = await sequelize.query(
@@ -84,6 +88,7 @@ const taoYeuCau = async (req, res) => {
 				e.meta = { rq: toPlainObject(rq) };
 				throw e;
 			}
+
 			for (const item of items) {
 				const thietBiId = Number(item?.equipment_id);
 				const soLuong = Number(item?.quantity || 1);
@@ -235,6 +240,46 @@ const chiTiet = async (req, res) => {
 	}
 };
 
+const updateBorrowRequestStatus = async ({ requestId, nguoiDuyetId, nextStatus, note = null }) => {
+	const [currentRows] = await sequelize.query(
+		`SELECT id, status FROM borrow_requests WHERE id = ? LIMIT 1`,
+		{ replacements: [requestId] }
+	);
+	const currentRequest = currentRows?.[0];
+	if (!currentRequest) return { found: false, updated: false };
+	if (currentRequest.status === nextStatus) return { found: true, updated: true, status: currentRequest.status, noop: true };
+	if (currentRequest.status !== 'pending') return { found: true, updated: false, status: currentRequest.status };
+
+	if (nextStatus === 'approved') {
+		await sequelize.query(
+			`UPDATE borrow_requests
+			 SET status = 'approved', approved_by = ?, updated_at = CURRENT_TIMESTAMP
+			 WHERE id = ?`,
+			{ replacements: [nguoiDuyetId, requestId] }
+		);
+	} else if (nextStatus === 'rejected') {
+		await sequelize.query(
+			`UPDATE borrow_requests
+			 SET status = 'rejected', approved_by = ?, note = ?, updated_at = CURRENT_TIMESTAMP
+			 WHERE id = ?`,
+			{ replacements: [nguoiDuyetId, note, requestId] }
+		);
+	} else {
+		throw new Error('UNSUPPORTED_STATUS');
+	}
+
+	const [afterRows] = await sequelize.query(
+		`SELECT id, status FROM borrow_requests WHERE id = ? LIMIT 1`,
+		{ replacements: [requestId] }
+	);
+	const updatedRequest = afterRows?.[0];
+	return {
+		found: true,
+		updated: updatedRequest?.status === nextStatus,
+		status: updatedRequest?.status,
+	};
+};
+
 const duyet = async (req, res) => {
 	try {
 		const nguoiDuyetId = req.user?.id;
@@ -243,17 +288,19 @@ const duyet = async (req, res) => {
 		const requestId = Number(req.params.id);
 		if (!requestId) return fail(res, 'ID yêu cầu không hợp lệ', 'VALIDATION_ERROR', 400);
 
-		const [result] = await sequelize.query(
-			`UPDATE borrow_requests
-			 SET status = 'approved', approved_by = ?, updated_at = NOW()
-			 WHERE id = ? AND status = 'pending'`,
-			{ replacements: [nguoiDuyetId, requestId] }
-		);
+		const result = await updateBorrowRequestStatus({
+			requestId,
+			nguoiDuyetId,
+			nextStatus: 'approved',
+		});
 
-		if (!result.affectedRows) {
+		if (!result.found) {
 			return fail(res, 'Không tìm thấy yêu cầu hoặc không ở trạng thái chờ duyệt', 'NOT_FOUND', 404);
 		}
-		return ok(res, { id: requestId }, 'Đã duyệt yêu cầu');
+		if (!result.updated) {
+			return fail(res, 'Không thể duyệt yêu cầu', 'INTERNAL_ERROR', 500);
+		}
+		return ok(res, { id: requestId, noop: !!result.noop }, 'Đã duyệt yêu cầu');
 	} catch (e) {
 		return fail(res, 'Lỗi server khi duyệt yêu cầu', 'INTERNAL_ERROR', 500);
 	}
@@ -268,17 +315,20 @@ const tuChoi = async (req, res) => {
 		if (!requestId) return fail(res, 'ID yêu cầu không hợp lệ', 'VALIDATION_ERROR', 400);
 		const { reason, note } = req.body || {};
 
-		const [result] = await sequelize.query(
-			`UPDATE borrow_requests
-			 SET status = 'rejected', approved_by = ?, note = ?, updated_at = NOW()
-			 WHERE id = ? AND status = 'pending'`,
-			{ replacements: [nguoiDuyetId, note || reason || null, requestId] }
-		);
+		const result = await updateBorrowRequestStatus({
+			requestId,
+			nguoiDuyetId,
+			nextStatus: 'rejected',
+			note: note || reason || null,
+		});
 
-		if (!result.affectedRows) {
+		if (!result.found) {
 			return fail(res, 'Không tìm thấy yêu cầu hoặc không ở trạng thái chờ duyệt', 'NOT_FOUND', 404);
 		}
-		return ok(res, { id: requestId }, 'Đã từ chối yêu cầu');
+		if (!result.updated) {
+			return fail(res, 'Không thể từ chối yêu cầu', 'INTERNAL_ERROR', 500);
+		}
+		return ok(res, { id: requestId, noop: !!result.noop }, 'Đã từ chối yêu cầu');
 	} catch (e) {
 		return fail(res, 'Lỗi server khi từ chối yêu cầu', 'INTERNAL_ERROR', 500);
 	}
@@ -304,6 +354,7 @@ const ghiNhanDaMuon = async (req, res) => {
 			if (!items.length) throw new Error('REQUEST_NOT_FOUND');
 
 			for (const it of items) {
+
 				let r;
 				try {
 					[r] = await sequelize.query(
@@ -359,13 +410,21 @@ const ghiNhanDaTra = async (req, res) => {
 		const requestId = Number(req.params.id);
 		if (!requestId) return fail(res, 'ID yêu cầu không hợp lệ', 'VALIDATION_ERROR', 400);
 
+		let borrowUserId = null;
+		let isLate = false;
+
 		await sequelize.transaction(async (t) => {
 			const [reqRows] = await sequelize.query(
-				`SELECT status FROM borrow_requests WHERE id = ?`,
+				`SELECT id, user_id, status, expected_return_date FROM borrow_requests WHERE id = ?`,
 				{ replacements: [requestId], transaction: t }
 			);
 			if (!reqRows.length) throw new Error('REQUEST_NOT_FOUND');
 			if (reqRows[0].status !== 'borrowed') throw new Error('INVALID_STATUS');
+
+			borrowUserId = reqRows[0].user_id;
+			const expectedDate = reqRows[0].expected_return_date;
+			const today = new Date().toISOString().slice(0, 10);
+			isLate = expectedDate && today > expectedDate;
 
 			const [items] = await sequelize.query(
 				`SELECT equipment_id, quantity FROM borrow_items WHERE request_id = ?`,
@@ -381,16 +440,116 @@ const ghiNhanDaTra = async (req, res) => {
 			}
 
 			await sequelize.query(
-				`UPDATE borrow_requests SET status = 'returned', actual_return_date = CURDATE(), updated_at = NOW() WHERE id = ?`,
+				`UPDATE borrow_requests SET status = 'returned', actual_return_date = ${getCurrentDateSql()}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
 				{ replacements: [requestId], transaction: t }
 			);
 		});
+
+		// Post-return side effects (non-critical, run after transaction)
+		if (borrowUserId) {
+			try {
+				const { calculateOverdue } = require('./penaltyController');
+				const { updateTrustScore } = require('./trustController');
+
+				const penalty = await calculateOverdue(requestId);
+				if (penalty > 0) {
+					// Late return: reduce trust score
+					await updateTrustScore(borrowUserId, -20, 'Trả thiết bị trễ hạn');
+				} else {
+					// On time: small trust boost
+					await updateTrustScore(borrowUserId, 5, 'Trả thiết bị đúng hạn');
+				}
+			} catch (sideErr) {
+				console.error('Post-return side effects error:', sideErr.message);
+			}
+		}
 
 		return ok(res, { id: requestId }, 'Đã ghi nhận trả thiết bị');
 	} catch (e) {
 		if (e?.message === 'INVALID_STATUS') return fail(res, 'Yêu cầu chưa ở trạng thái đang mượn', 'INVALID_STATUS', 409);
 		if (e?.message === 'REQUEST_NOT_FOUND') return fail(res, 'Không tìm thấy yêu cầu mượn', 'NOT_FOUND', 404);
 		return fail(res, 'Lỗi server khi ghi nhận trả', 'INTERNAL_ERROR', 500);
+	}
+};
+
+const smartApprove = async (req, res) => {
+	try {
+		const adminId = req.user?.id;
+		if (req.user?.role !== 'admin') return fail(res, 'Không có quyền', 'FORBIDDEN', 403);
+
+		const requestId = Number(req.params.id);
+		if (!requestId) return fail(res, 'ID yêu cầu không hợp lệ', 'VALIDATION_ERROR', 400);
+
+		// Fetch the request
+		const [reqRows] = await sequelize.query(
+			`SELECT br.id, br.user_id, br.borrow_date, br.expected_return_date, br.status
+			 FROM borrow_requests br WHERE br.id = ? LIMIT 1`,
+			{ replacements: [requestId] }
+		);
+		if (!reqRows.length) return fail(res, 'Không tìm thấy yêu cầu mượn', 'NOT_FOUND', 404);
+		const borrowReq = reqRows[0];
+
+		if (borrowReq.status !== 'pending') {
+			return ok(res, { auto_approved: false, reason: 'Yêu cầu không ở trạng thái chờ duyệt' });
+		}
+
+		// Check 1: user trust score > 80
+		const [userRows] = await sequelize.query(
+			'SELECT trust_score, is_banned FROM users WHERE id = ? LIMIT 1',
+			{ replacements: [borrowReq.user_id] }
+		);
+		const user = userRows?.[0];
+		if (!user || (user.trust_score ?? 100) <= 80) {
+			return ok(res, { auto_approved: false, reason: 'Điểm tin cậy của người dùng không đủ (cần > 80)' });
+		}
+		if (user.is_banned) {
+			return ok(res, { auto_approved: false, reason: 'Người dùng đang bị cấm' });
+		}
+
+		// Check 2: all equipment has available_quantity > 0
+		const [items] = await sequelize.query(
+			`SELECT bi.equipment_id, bi.quantity, e.available_quantity, e.name
+			 FROM borrow_items bi JOIN equipments e ON e.id = bi.equipment_id
+			 WHERE bi.request_id = ?`,
+			{ replacements: [requestId] }
+		);
+		for (const item of items) {
+			if (item.available_quantity < item.quantity) {
+				return ok(res, {
+					auto_approved: false,
+					reason: `Thiết bị "${item.name}" không đủ số lượng (cần ${item.quantity}, có ${item.available_quantity})`,
+				});
+			}
+		}
+
+		// Check 3: no date conflict for the same equipment
+		for (const item of items) {
+			const [conflicts] = await sequelize.query(
+				`SELECT COUNT(*) as cnt FROM borrow_items bi
+				 JOIN borrow_requests br ON br.id = bi.request_id
+				 WHERE bi.equipment_id = ?
+				   AND br.id != ?
+				   AND br.status IN ('approved', 'borrowed')
+				   AND br.borrow_date <= ? AND br.expected_return_date >= ?`,
+				{ replacements: [item.equipment_id, requestId, borrowReq.expected_return_date, borrowReq.borrow_date] }
+			);
+			if (conflicts[0]?.cnt > 0) {
+				return ok(res, {
+					auto_approved: false,
+					reason: `Thiết bị "${item.name}" đã có lịch mượn trùng trong khoảng thời gian này`,
+				});
+			}
+		}
+
+		// All checks passed — auto approve
+		await sequelize.query(
+			`UPDATE borrow_requests SET status = 'approved', approved_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'pending'`,
+			{ replacements: [adminId, requestId] }
+		);
+
+		return ok(res, { auto_approved: true, reason: 'AUTO_APPROVED: Tất cả điều kiện đều hợp lệ' });
+	} catch (e) {
+		return fail(res, 'Lỗi server khi tự động duyệt', 'INTERNAL_ERROR', 500);
 	}
 };
 
@@ -404,4 +563,6 @@ module.exports = {
 	tuChoi,
 	ghiNhanDaMuon,
 	ghiNhanDaTra,
+	smartApprove,
 };
+

@@ -1,3 +1,5 @@
+/// <reference path="../../../global.d.ts" />
+
 import React, { useEffect, useState } from 'react';
 import {
   Table,
@@ -24,14 +26,17 @@ import {
   LockOutlined,
 } from '@ant-design/icons';
 import './styles.less';
+import { isStudentRole, normalizeRole } from '../../../utils/auth';
 
 interface User {
   id: number;
-  name: string;
+  name?: string;
+  full_name?: string;
   email: string;
-  role: 'admin' | 'student';
+  role: string;
   status: 'active' | 'inactive';
-  createdAt: string;
+  createdAt?: string;
+  created_at?: string;
   updatedAt?: string;
 }
 
@@ -42,7 +47,8 @@ const UserManagement: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
   const [formLoading, setFormLoading] = useState(false);
-  const apiUrl = `${process.env.API_URL}/api`;
+  const apiHost = (window as any).__API_URL__ || process.env.API_URL || window.location.origin;
+  const apiUrl = `${apiHost}/api`;
   const [stats, setStats] = useState({
     totalUsers: 0,
     adminCount: 0,
@@ -66,7 +72,7 @@ const UserManagement: React.FC = () => {
       window.location.hash = '#/';
       return;
     }
-    if (userData.role !== 'admin') {
+    if (isStudentRole(userData.role)) {
       window.location.hash = '#/';
       return;
     }
@@ -95,8 +101,8 @@ const UserManagement: React.FC = () => {
       // Calculate stats
       const stats = {
         totalUsers: data.length,
-        adminCount: data.filter((u: User) => u.role === 'admin').length,
-        studentCount: data.filter((u: User) => u.role === 'student').length,
+        adminCount: data.filter((u: User) => !isStudentRole(u.role)).length,
+        studentCount: data.filter((u: User) => isStudentRole(u.role)).length,
         activeUsers: data.filter((u: User) => u.status === 'active').length,
       };
       setStats(stats);
@@ -215,8 +221,19 @@ const UserManagement: React.FC = () => {
       dataIndex: 'role',
       key: 'role',
       render: (role: string) => {
-        const color = role === 'admin' ? 'red' : 'blue';
-        const text = role === 'admin' ? 'Quản Trị Viên' : 'Sinh Viên';
+        const normalizedRole = normalizeRole(role);
+        const isStudent = normalizedRole === 'student';
+        const color = isStudent ? 'blue' : 'red';
+        const labelMap: Record<string, string> = {
+          student: 'Sinh Viên',
+          admin: 'Quản Trị Viên',
+          super_admin: 'Super Admin',
+          warehouse_admin: 'Admin Kho Thiết Bị',
+          request_admin: 'Admin Duyệt Yêu Cầu',
+          warehouse_staff: 'Nhân Viên Kho',
+          assistant: 'Cộng Tác Viên',
+        };
+        const text = labelMap[normalizedRole] || normalizedRole;
         return <Tag color={color}>{text}</Tag>;
       },
     },
@@ -234,7 +251,7 @@ const UserManagement: React.FC = () => {
       title: 'Ngày Tạo',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (date: string) => new Date(date).toLocaleDateString('vi-VN'),
+      render: (date: string, record: User) => new Date(date || record.created_at || record.createdAt || Date.now()).toLocaleDateString('vi-VN'),
     },
     {
       title: 'Hành Động',
@@ -263,8 +280,27 @@ const UserManagement: React.FC = () => {
   ];
 
   return (
-    <div className="user-management">
-      <Card title="Quản Lý Người Dùng" className="user-management-card">
+    <div className="user-management fade-in">
+      <Card title={<div className="card-title">Quản Lý Người Dùng</div>} className="user-management-card">
+        <div className="um-header" style={{ marginBottom: 18 }}>
+          <div className="um-title">Quản Lý Người Dùng</div>
+          <div className="um-actions">
+            <Input.Search
+              placeholder="Tìm kiếm tên hoặc email"
+              onSearch={(val) => {
+                const q = (val || '').toLowerCase().trim();
+                if (!q) return fetchUsers();
+                setUsers((prev) => prev.filter((u) => (u.name + ' ' + u.email).toLowerCase().includes(q)));
+              }}
+              style={{ width: 320, marginRight: 12 }}
+              allowClear
+            />
+            <Button onClick={fetchUsers} style={{ marginRight: 8 }}>Làm mới</Button>
+            <Button type="primary" icon={<UserAddOutlined />} onClick={handleAddUser} size="middle">
+              Thêm
+            </Button>
+          </div>
+        </div>
         {/* Statistics */}
         <Row gutter={16} style={{ marginBottom: 24 }}>
           <Col xs={12} sm={6}>
@@ -289,8 +325,8 @@ const UserManagement: React.FC = () => {
           </Col>
         </Row>
 
-        {/* Add User Button */}
-        <div style={{ marginBottom: 16 }}>
+        {/* Add User Button (kept for backward compatibility on small screens) */}
+        <div style={{ marginBottom: 16, display: 'none' }} className="um-add-mobile">
           <Button
             type="primary"
             icon={<UserAddOutlined />}

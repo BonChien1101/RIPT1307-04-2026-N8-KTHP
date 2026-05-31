@@ -61,3 +61,18 @@ Với DB managed (Aiven/...), thường bạn **không có quyền** `CREATE DAT
 
 - Hãy chọn đúng database (ví dụ `defaultdb`) rồi chạy file `backend/schema.sql`.
 - File `schema.sql` trong repo đã bỏ phần `CREATE DATABASE/USE` để chạy được trên DB managed.
+
+### Chạy bằng script trong backend
+
+```powershell
+cd backend
+npm run db:schema
+npm run db:migrate
+npm run db:seed
+```
+
+- `db:schema`: import toàn bộ schema hiện tại trong `schema.sql`
+- `db:migrate`: chuyển `equipments.category` sang `categories.id` khi cần
+- `db:seed`: nạp dữ liệu mẫu
+
+Khuyến nghị backup trước khi chạy `db:migrate` trên DB đang có dữ liệu thật.

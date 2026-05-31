@@ -1,34 +1,110 @@
+@import '../../../styles/global.less';
+
 .user-management {
-  padding: 20px;
+  padding: 28px;
+  background: linear-gradient(180deg, rgba(250,251,255,0.6), rgba(250,251,255,0.9));
+
+  &.fade-in {
+    animation: fadeInUp 420ms ease both;
+  }
 
   .user-management-card {
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03), 0 1px 6px -1px rgba(0, 0, 0, 0.02),
-      0 2px 4px 0 rgba(0, 0, 0, 0.02);
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(22, 24, 35, 0.04);
+    box-shadow: 0 12px 30px rgba(20, 32, 70, 0.06);
+    transition: transform 220ms ease, box-shadow 220ms ease;
+
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(20, 32, 70, 0.09);
+    }
 
     :global {
+      .ant-card-head {
+        background: linear-gradient(90deg, var(--primary-start) 0%, var(--primary-end) 100%);
+        color: var(--card-head-text);
+        .ant-card-head-title { font-weight: 700; }
+      }
+
       .ant-table {
         font-size: 14px;
+        border-radius: 12px;
+        overflow: hidden;
+
+        .ant-table-thead > tr > th {
+          background: var(--accent-strong);
+          border-bottom: 0;
+        }
+
+        .ant-table-tbody > tr > td {
+          transition: background 160ms ease, transform 160ms ease;
+        }
+
+        .ant-table-tbody > tr:hover > td {
+          background: var(--accent-soft);
+          transform: translateX(4px);
+        }
       }
 
       .ant-statistic-title {
-        font-weight: 500;
+        font-weight: 600;
       }
 
       .ant-tag {
-        padding: 4px 12px;
-        font-size: 12px;
+        padding: 6px 14px;
+        font-size: 13px;
+        border-radius: 999px;
+      }
+
+      .ant-btn-primary {
+        background: linear-gradient(135deg, var(--primary-start) 0%, var(--primary-end) 100%);
+        border-color: transparent;
+        box-shadow: 0 8px 20px rgba(103,114,237,0.18);
+        transition: transform 150ms ease, box-shadow 150ms ease;
       }
     }
   }
 
-  .action-buttons {
+  .um-header {
     display: flex;
-    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+
+    .um-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .um-actions {
+      display: flex;
+      align-items: center;
+    }
   }
+
+  .card-title { color: var(--card-head-text); font-weight: 700; }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .um-add-mobile { display: none; }
+
 }
 
 @media (max-width: 768px) {
   .user-management {
-    padding: 10px;
+    padding: 14px;
+
+    .user-management-card {
+      .ant-card-head { background: linear-gradient(90deg, var(--primary-start) 0%, var(--primary-end) 100%); }
+    }
+
+    .um-header { flex-direction: column; align-items: stretch; }
+    .um-actions { justify-content: flex-end; }
+    .um-add-mobile { display: block; }
   }
 }

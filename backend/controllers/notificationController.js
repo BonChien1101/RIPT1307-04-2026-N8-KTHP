@@ -1,6 +1,7 @@
 
 const sequelize = require('../config/database');
 const { ok, fail } = require('../utils/response');
+const { getAffectedRows } = require('../utils/sqlCompat');
 
 const danhSach = async (req, res) => {
   try {
@@ -26,16 +27,32 @@ const danhDauDaDoc = async (req, res) => {
   const thongBaoId = Number(req.params.id);
   if (!thongBaoId) return fail(res, 'ID không hợp lệ', 'VALIDATION_ERROR', 400);
 
-    const [result] = await sequelize.query(
+    const [result, resultMeta] = await sequelize.query(
       'UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?',
   { replacements: [thongBaoId, nguoiDungId] }
     );
 
-    if (!result.affectedRows) return fail(res, 'Không tìm thấy thông báo', 'NOT_FOUND', 404);
+    if (!getAffectedRows(result, resultMeta)) return fail(res, 'Không tìm thấy thông báo', 'NOT_FOUND', 404);
   return ok(res, { id: thongBaoId }, 'Đã đánh dấu đã đọc');
   } catch (e) {
     return fail(res, 'Lỗi server', 'INTERNAL_ERROR', 500);
   }
 };
 
-module.exports = { danhSach, danhDauDaDoc };
+const readAll = async (req, res) => {
+  try {
+    const nguoiDungId = req.user?.id;
+    if (!nguoiDungId) return fail(res, 'Bạn cần đăng nhập', 'AUTH_REQUIRED', 401);
+
+    await sequelize.query(
+      'UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0',
+      { replacements: [nguoiDungId] }
+    );
+
+    return ok(res, null, 'Đã đánh dấu tất cả đã đọc');
+  } catch (e) {
+    return fail(res, 'Lỗi server', 'INTERNAL_ERROR', 500);
+  }
+};
+
+module.exports = { danhSach, danhDauDaDoc, readAll };

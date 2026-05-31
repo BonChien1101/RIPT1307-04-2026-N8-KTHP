@@ -18,7 +18,7 @@ export default defineConfig({
   define: {
     'process.env.REACT_APP_ENV': process.env.REACT_APP_ENV,
     'process.env.UMI_ENV': process.env.UMI_ENV || 'dev',
-    'process.env.API_URL': process.env.API_URL || 'https://ript1307-04-2026-n8-kthp.onrender.com',
+    'process.env.API_URL': process.env.API_URL || 'http://localhost:5000',
   },
   ignoreMomentLocale: true,
   dynamicImport: {
@@ -31,7 +31,7 @@ export default defineConfig({
     port: 8000,
     proxy: {
       '/api': {
-        target: 'https://ript1307-04-2026-n8-kthp.onrender.com',
+        target: 'http://localhost:5000',
         changeOrigin: true,
       },
     },
