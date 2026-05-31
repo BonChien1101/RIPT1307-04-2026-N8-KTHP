@@ -1,5 +1,7 @@
 // @ts-nocheck
-import { createHashHistory, History } from 'E:/BTL/RIPT1307-04-2026-N8-KTHP/frontend/node_modules/@umijs/runtime';
+
+import { createHashHistory, History } from 'D:/BTLCK_NHOM8/frontend/node_modules/@umijs/runtime';
+
 
 let options = {
   "basename": "/"

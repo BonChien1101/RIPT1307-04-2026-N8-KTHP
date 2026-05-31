@@ -1,8 +1,3 @@
-/**
- * Borrow Service
- * Handles all borrow request-related API calls
- */
-
 import { authService } from './auth';
 import { getApiUrl } from '../utils/api';
 
@@ -14,15 +9,10 @@ const getHeaders = () => ({
 });
 
 export const borrowService = {
-  /**
-   * Get all borrow requests
-   * @param {Object} params - Query parameters (page, limit, status, etc.)
-   * @returns {Promise}
-   */
   getAllRequests: async (params = {}) => {
     try {
       const queryString = new URLSearchParams(params).toString();
-      const url = queryString ? `${API_URL}/borrow/requests?${queryString}` : `${API_URL}/borrow/requests`;
+  const url = queryString ? `${API_URL}/borrow-requests?${queryString}` : `${API_URL}/borrow-requests`;
       
       const response = await fetch(url, {
         method: 'GET',
@@ -39,14 +29,9 @@ export const borrowService = {
     }
   },
 
-  /**
-   * Get borrow request by ID
-   * @param {number} id - Request ID
-   * @returns {Promise}
-   */
   getRequestById: async (id) => {
     try {
-      const response = await fetch(`${API_URL}/borrow/requests/${id}`, {
+  const response = await fetch(`${API_URL}/borrow-requests/${id}`, {
         method: 'GET',
         headers: getHeaders(),
       });
@@ -61,14 +46,9 @@ export const borrowService = {
     }
   },
 
-  /**
-   * Create new borrow request
-   * @param {Object} data - Borrow request data
-   * @returns {Promise}
-   */
   createRequest: async (data) => {
     try {
-      const response = await fetch(`${API_URL}/borrow/request`, {
+  const response = await fetch(`${API_URL}/borrow-requests`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify(data),
@@ -85,15 +65,10 @@ export const borrowService = {
     }
   },
 
-  /**
-   * Approve borrow request
-   * @param {number} id - Request ID
-   * @returns {Promise}
-   */
   approveRequest: async (id) => {
     try {
-      const response = await fetch(`${API_URL}/borrow/${id}/approve`, {
-        method: 'PUT',
+      const response = await fetch(`${API_URL}/borrow-requests/${id}/approve`, {
+        method: 'PATCH',
         headers: getHeaders(),
       });
 
@@ -107,15 +82,10 @@ export const borrowService = {
     }
   },
 
-  /**
-   * Reject borrow request
-   * @param {number} id - Request ID
-   * @returns {Promise}
-   */
   rejectRequest: async (id) => {
     try {
-      const response = await fetch(`${API_URL}/borrow/${id}/reject`, {
-        method: 'PUT',
+      const response = await fetch(`${API_URL}/borrow-requests/${id}/reject`, {
+        method: 'PATCH',
         headers: getHeaders(),
       });
 
@@ -129,20 +99,15 @@ export const borrowService = {
     }
   },
 
-  /**
-   * Return borrowed item
-   * @param {number} id - Request ID
-   * @returns {Promise}
-   */
-  returnItem: async (id) => {
+  markBorrowed: async (id) => {
     try {
-      const response = await fetch(`${API_URL}/borrow/${id}/return`, {
-        method: 'PUT',
+      const response = await fetch(`${API_URL}/borrow-requests/${id}/mark-borrowed`, {
+        method: 'PATCH',
         headers: getHeaders(),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to return item');
+        throw new Error('Failed to mark as borrowed');
       }
 
       return await response.json();
@@ -151,15 +116,27 @@ export const borrowService = {
     }
   },
 
-  /**
-   * Get borrow history
-   * @param {Object} params - Query parameters
-   * @returns {Promise}
-   */
+  markReturned: async (id) => {
+    try {
+      const response = await fetch(`${API_URL}/borrow-requests/${id}/mark-returned`, {
+        method: 'PATCH',
+        headers: getHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to mark as returned');
+      }
+
+      return await response.json();
+    } catch (error) {
+      throw error;
+    }
+  },
+
   getHistory: async (params = {}) => {
     try {
       const queryString = new URLSearchParams(params).toString();
-      const url = queryString ? `${API_URL}/borrow/history?${queryString}` : `${API_URL}/borrow/history`;
+  const url = queryString ? `${API_URL}/borrow-requests/me?${queryString}` : `${API_URL}/borrow-requests/me`;
       
       const response = await fetch(url, {
         method: 'GET',
@@ -176,13 +153,9 @@ export const borrowService = {
     }
   },
 
-  /**
-   * Get borrow statistics
-   * @returns {Promise}
-   */
   getStatistics: async () => {
     try {
-      const response = await fetch(`${API_URL}/borrow/statistics`, {
+  const response = await fetch(`${API_URL}/statistics/borrow`, {
         method: 'GET',
         headers: getHeaders(),
       });
@@ -197,14 +170,9 @@ export const borrowService = {
     }
   },
 
-  /**
-   * Delete borrow request
-   * @param {number} id - Request ID
-   * @returns {Promise}
-   */
   deleteRequest: async (id) => {
     try {
-      const response = await fetch(`${API_URL}/borrow/requests/${id}`, {
+  const response = await fetch(`${API_URL}/borrow-requests/${id}`, {
         method: 'DELETE',
         headers: getHeaders(),
       });
