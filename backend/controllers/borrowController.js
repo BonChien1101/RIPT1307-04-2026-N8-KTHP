@@ -48,6 +48,11 @@ const taoYeuCau = async (req, res) => {
 		if (!/^\d{4}-\d{2}-\d{2}$/.test(String(borrowDate)) || !/^\d{4}-\d{2}-\d{2}$/.test(String(returnDate))) {
 			return fail(res, 'Ngày mượn/trả không hợp lệ (YYYY-MM-DD)', 'VALIDATION_ERROR', 400);
 		}
+		if (String(returnDate) < String(borrowDate)) {
+			return fail(res, 'Ngày trả dự kiến phải bằng hoặc sau ngày mượn', 'VALIDATION_ERROR', 400, [
+				{ field: 'expected_return_date', message: 'expected_return_date phải >= borrow_date' },
+			]);
+		}
 		for (const it of items) {
 			const equipmentId = Number(it?.equipment_id);
 			const quantity = Number(it?.quantity);
@@ -299,23 +304,49 @@ const ghiNhanDaMuon = async (req, res) => {
 			if (!items.length) throw new Error('REQUEST_NOT_FOUND');
 
 			for (const it of items) {
-				const [r] = await sequelize.query(
-					`UPDATE equipments
-					 SET available_quantity = available_quantity - ?
-					 WHERE id = ? AND available_quantity >= ?`,
-					{ replacements: [it.quantity, it.equipment_id, it.quantity], transaction: t }
-				);
+				let r;
+				try {
+					[r] = await sequelize.query(
+						`UPDATE equipments
+						 SET available_quantity = available_quantity - ?
+						 WHERE id = ? AND available_quantity >= ?`,
+						{ replacements: [it.quantity, it.equipment_id, it.quantity], transaction: t }
+					);
+				} catch (err) {
+					err.statement = 'UPDATE_EQUIPMENTS_DECREASE';
+					err.replacements = [it.quantity, it.equipment_id, it.quantity];
+					throw err;
+				}
 				if (!r.affectedRows) throw new Error('OUT_OF_STOCK');
 			}
 
-			await sequelize.query(
-				`UPDATE borrow_requests SET status = 'borrowed', updated_at = NOW() WHERE id = ?`,
-				{ replacements: [requestId], transaction: t }
-			);
+			try {
+				await sequelize.query(
+					`UPDATE borrow_requests SET status = 'borrowed', updated_at = NOW() WHERE id = ?`,
+					{ replacements: [requestId], transaction: t }
+				);
+			} catch (err) {
+				err.statement = 'UPDATE_BORROW_REQUESTS_STATUS';
+				err.replacements = [requestId];
+				throw err;
+			}
 		});
 
 		return ok(res, { id: requestId }, 'Đã ghi nhận mượn thiết bị');
 	} catch (e) {
+		console.error('[borrowController.ghiNhanDaMuon] error =', e);
+	
+		console.error('[borrowController.ghiNhanDaMuon] error.message =', e?.message);
+		console.error('[borrowController.ghiNhanDaMuon] error.stack =', e?.stack);
+	
+		console.error('[borrowController.ghiNhanDaMuon] error.original =', e?.original);
+		if (e?.statement) {p
+
+			console.error('[borrowController.ghiNhanDaMuon] statement =', e.statement);
+		}
+		if (e?.replacements) {
+			console.error('[borrowController.ghiNhanDaMuon] replacements =', e.replacements);
+		}
 		if (e?.message === 'OUT_OF_STOCK') return fail(res, 'Không đủ số lượng thiết bị trong kho', 'OUT_OF_STOCK', 409);
 		if (e?.message === 'INVALID_STATUS') return fail(res, 'Yêu cầu chưa ở trạng thái đã duyệt', 'INVALID_STATUS', 409);
 		if (e?.message === 'REQUEST_NOT_FOUND') return fail(res, 'Không tìm thấy yêu cầu mượn', 'NOT_FOUND', 404);
