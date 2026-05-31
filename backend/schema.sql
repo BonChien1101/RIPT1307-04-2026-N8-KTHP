@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS borrow_requests (
     status ENUM(
         'pending',
         'approved',
+        'borrowed',
         'rejected',
         'returned',
         'overdue',
