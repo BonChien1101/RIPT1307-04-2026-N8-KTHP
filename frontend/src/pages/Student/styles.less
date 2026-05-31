@@ -1,0 +1,77 @@
+.student-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+  .header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+
+    .header-title {
+      display: flex;
+      align-items: center;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      padding: 8px 12px;
+      border-radius: 4px;
+      transition: all 0.3s;
+
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.2);
+      }
+    }
+  }
+}
+
+.student-sider {
+  background: #fff;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.06);
+
+  :global {
+    .ant-menu {
+      border-right: none;
+    }
+
+    .ant-menu-item {
+      border-radius: 4px;
+      margin: 8px 8px;
+
+      &:hover {
+        background-color: #f0f2f5;
+      }
+
+      &.ant-menu-item-selected {
+        background-color: #e6f7ff;
+        border-radius: 4px;
+
+        :global {
+          .anticon {
+            color: #1890ff;
+          }
+        }
+      }
+    }
+  }
+}
+
+.content-card {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  margin-bottom: 24px;
+
+  :global {
+    .ant-table {
+      background-color: #fff;
+    }
+  }
+}

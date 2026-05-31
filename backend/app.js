@@ -64,6 +64,14 @@ app.use((req, res) => {
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
+	// eslint-disable-next-line no-console
+	console.error('[globalError]', {
+		message: err?.message,
+		stack: err?.stack,
+		original: err?.original,
+		path: req?.path,
+		method: req?.method,
+	});
 	if (err?.message === 'CORS_NOT_ALLOWED') {
 		return fail(res, 'CORS: origin không được phép', 'CORS_NOT_ALLOWED', 403);
 	}

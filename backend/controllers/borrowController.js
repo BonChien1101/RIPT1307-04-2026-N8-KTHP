@@ -16,6 +16,21 @@ const taoYeuCau = async (req, res) => {
 			return fail(res, 'Thiếu dữ liệu yêu cầu mượn', 'VALIDATION_ERROR', 400);
 		}
 
+		// Validate tối thiểu để tránh rollback mù: item thiếu equipment_id/quantity, hoặc date format sai.
+		// MySQL DATE thường nhận 'YYYY-MM-DD'.
+		if (!/^\d{4}-\d{2}-\d{2}$/.test(String(borrowDate)) || !/^\d{4}-\d{2}-\d{2}$/.test(String(returnDate))) {
+			return fail(res, 'Ngày mượn/trả không hợp lệ (YYYY-MM-DD)', 'VALIDATION_ERROR', 400);
+		}
+		for (const it of items) {
+			const equipmentId = Number(it?.equipment_id);
+			const quantity = Number(it?.quantity);
+			if (!equipmentId || !Number.isFinite(quantity) || quantity <= 0) {
+				return fail(res, 'Danh sách thiết bị không hợp lệ', 'VALIDATION_ERROR', 400, [
+					{ field: 'items', message: 'Mỗi item cần equipment_id (number) và quantity > 0' },
+				]);
+			}
+		}
+
 		const ketQua = await sequelize.transaction(async (t) => {
 			const [rq] = await sequelize.query(
 				`INSERT INTO borrow_requests (user_id, borrow_date, expected_return_date, status, note, created_at, updated_at)
@@ -43,8 +58,24 @@ const taoYeuCau = async (req, res) => {
 
 		return ok(res, { id: ketQua.requestId, status: 'pending' }, 'Tạo yêu cầu mượn thành công', 201);
 	} catch (e) {
+		// Log chi tiết để debug trên Render (rollback trong transaction thường do lỗi insert borrow_items / FK constraint)
+		// eslint-disable-next-line no-console
+		console.error('[borrowController.taoYeuCau] error.message:', e?.message);
+		// eslint-disable-next-line no-console
+		console.error('[borrowController.taoYeuCau] error.stack:', e?.stack);
+		// eslint-disable-next-line no-console
+		console.error('[borrowController.taoYeuCau] sequelize/original:', e?.original || e);
+
 		if (e?.message === 'INVALID_ITEM') {
 			return fail(res, 'Danh sách thiết bị không hợp lệ', 'VALIDATION_ERROR', 400);
+		}
+		// MySQL FK violation
+		if (e?.original?.code === 'ER_NO_REFERENCED_ROW_2') {
+			return fail(res, 'Thiết bị không tồn tại hoặc user không hợp lệ', 'CONFLICT', 409);
+		}
+		// Invalid DATE
+		if (e?.original?.code === 'ER_TRUNCATED_WRONG_VALUE') {
+			return fail(res, 'Ngày mượn/trả không hợp lệ', 'VALIDATION_ERROR', 400);
 		}
 		return fail(res, 'Lỗi server khi tạo yêu cầu mượn', 'INTERNAL_ERROR', 500);
 	}

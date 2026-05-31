@@ -1,22 +1,29 @@
 // @ts-nocheck
 import React from 'react';
-import { ApplyPluginsType } from 'D:/BTLCK_NHOM8/frontend/node_modules/@umijs/runtime';
+import { ApplyPluginsType, dynamic } from 'D:/BTLCK_NHOM8/frontend/node_modules/@umijs/runtime';
 import * as umiExports from './umiExports';
 import { plugin } from './plugin';
+import LoadingComponent from '@ant-design/pro-layout/es/PageLoading';
 
 export function getRoutes() {
   const routes = [
   {
-    "path": "/~demos/:uuid",
-    "layout": false,
-    "wrappers": [require('../dumi/layout').default],
-    "component": ((props) => {
-        const React = require('react');
-        const { default: getDemoRenderArgs } = require('D:/BTLCK_NHOM8/frontend/node_modules/@umijs/preset-dumi/lib/plugins/features/demo/getDemoRenderArgs');
-        const { default: Previewer } = require('dumi-theme-default/es/builtins/Previewer.js');
-        const { usePrefersColor, context } = require('dumi/theme');
+    "path": "/",
+    "component": dynamic({ loader: () => import(/* webpackChunkName: '.umi__plugin-layout__Layout' */'D:/BTLCK_NHOM8/frontend/src/.umi/plugin-layout/Layout.tsx'), loading: LoadingComponent}),
+    "routes": [
+      {
+        "path": "/~demos/:uuid",
+        "layout": false,
+        "wrappers": [dynamic({ loader: () => import(/* webpackChunkName: 'wrappers' */'../dumi/layout'), loading: LoadingComponent})],
+        "component": ((props) => dynamic({
+          loader: async () => {
+            const React = await import('react');
+            const { default: getDemoRenderArgs } = await import(/* webpackChunkName: 'dumi_demos' */ 'D:/BTLCK_NHOM8/frontend/node_modules/@umijs/preset-dumi/lib/plugins/features/demo/getDemoRenderArgs');
+            const { default: Previewer } = await import(/* webpackChunkName: 'dumi_demos' */ 'dumi-theme-default/es/builtins/Previewer.js');
+            const { usePrefersColor, context } = await import(/* webpackChunkName: 'dumi_demos' */ 'dumi/theme');
 
-        
+            return props => {
+              
       const { demos } = React.useContext(context);
       const [renderArgs, setRenderArgs] = React.useState([]);
 
@@ -45,20 +52,46 @@ export function getRoutes() {
           return `Demo ${props.match.params.uuid} not found :(`;
       }
     
-        })
-  },
-  {
-    "path": "/_demos/:uuid",
-    "redirect": "/~demos/:uuid"
-  },
-  {
-    "__dumiRoot": true,
-    "layout": false,
-    "path": "/~docs",
-    "wrappers": [require('../dumi/layout').default, require('D:/BTLCK_NHOM8/frontend/node_modules/dumi-theme-default/es/layout.js').default],
-    "routes": [],
-    "title": "ant-design-pro",
-    "component": (props) => props.children
+            }
+          },
+          loading: () => null,
+        }))()
+      },
+      {
+        "path": "/_demos/:uuid",
+        "redirect": "/~demos/:uuid"
+      },
+      {
+        "__dumiRoot": true,
+        "layout": false,
+        "path": "/~docs",
+        "wrappers": [dynamic({ loader: () => import(/* webpackChunkName: 'wrappers' */'../dumi/layout'), loading: LoadingComponent}), dynamic({ loader: () => import(/* webpackChunkName: 'wrappers' */'D:/BTLCK_NHOM8/frontend/node_modules/dumi-theme-default/es/layout.js'), loading: LoadingComponent})],
+        "routes": [],
+        "title": "ant-design-pro",
+        "component": (props) => props.children
+      },
+      {
+        "path": "/",
+        "name": "login",
+        "component": dynamic({ loader: () => import(/* webpackChunkName: 'p__Login' */'D:/BTLCK_NHOM8/frontend/src/pages/Login'), loading: LoadingComponent}),
+        "layout": false,
+        "exact": true
+      },
+      {
+        "path": "/student",
+        "name": "student",
+        "component": dynamic({ loader: () => import(/* webpackChunkName: 'p__Student' */'D:/BTLCK_NHOM8/frontend/src/pages/Student'), loading: LoadingComponent}),
+        "access": "canStudent",
+        "exact": true
+      },
+      {
+        "path": "/admin",
+        "name": "admin",
+        "component": dynamic({ loader: () => import(/* webpackChunkName: 'p__Admin' */'D:/BTLCK_NHOM8/frontend/src/pages/Admin'), loading: LoadingComponent}),
+        "access": "canAdmin",
+        "exact": true
+      }
+    ]
   }
 ];
 
