@@ -1,18 +1,10 @@
 const sequelize = require('../config/database');
 const { ok, fail } = require('../utils/response');
 
-// Trạng thái :
-// pending -> approved | rejected
-// approved -> borrowed (ghi nhận đã lấy thiết bị, trừ kho)
-// borrowed -> returned (ghi nhận đã trả, cộng kho)
+const { QueryTypes } = require('sequelize');
 
 const taoYeuCau = async (req, res) => {
 	try {
-
-		console.log('BODY =', req.body);
-		console.log('PARAMS =', req.params);
-		console.log('USER =', req.user);
-
 		const nguoiDungId = req.user?.id;
 		if (!nguoiDungId) return fail(res, 'Bạn cần đăng nhập', 'AUTH_REQUIRED', 401);
 
@@ -48,28 +40,15 @@ const taoYeuCau = async (req, res) => {
 		}
 
 		const ketQua = await sequelize.transaction(async (t) => {
-			const rqReplacements = [nguoiDungId, borrowDate, returnDate, note ?? null];
-			console.log('[borrow_requests.insert] replacements =', rqReplacements);
-
-			const [rq] = await sequelize.query(
+			const rq = await sequelize.query(
 				`INSERT INTO borrow_requests (user_id, borrow_date, expected_return_date, status, note, created_at, updated_at)
 				 VALUES (?, ?, ?, 'pending', ?, NOW(), NOW())`,
-				{ replacements: rqReplacements, transaction: t }
+				{ replacements: [nguoiDungId, borrowDate, returnDate, note ?? null], transaction: t, type: QueryTypes.INSERT }
 			);
 
-			// MySQL/Sequelize trả về metadata khác nhau tuỳ config:
-			// - Thường là object có insertId
-			// - Một số môi trường trả về mảng/tuple hoặc property `0`
-			const requestId =
-				rq?.insertId ??
-				rq?.[0]?.insertId ??
-				rq?.[0]?.id ??
-				rq?.[0];
-			if (!requestId) {
-				// eslint-disable-next-line no-console
-				console.error('[borrow_requests.insert] metadata =', rq);
-				throw new Error('INSERT_REQUEST_FAILED');
-			}
+	
+			const requestId = rq?.insertId ?? rq?.[0]?.insertId;
+			if (!requestId) throw new Error('INSERT_REQUEST_FAILED');
 			for (const item of items) {
 				const thietBiId = Number(item?.equipment_id);
 				const soLuong = Number(item?.quantity || 1);
@@ -77,13 +56,10 @@ const taoYeuCau = async (req, res) => {
 					throw new Error('INVALID_ITEM');
 				}
 
-				const itemReplacements = [requestId, thietBiId, soLuong];
-				console.log('[borrow_items.insert] replacements =', itemReplacements);
-
 				await sequelize.query(
 					`INSERT INTO borrow_items (request_id, equipment_id, quantity)
 					 VALUES (?, ?, ?)`,
-					{ replacements: itemReplacements, transaction: t }
+					{ replacements: [requestId, thietBiId, soLuong], transaction: t, type: QueryTypes.INSERT }
 				);
 			}
 
@@ -93,14 +69,12 @@ const taoYeuCau = async (req, res) => {
 		return ok(res, { id: ketQua.requestId, status: 'pending' }, 'Tạo yêu cầu mượn thành công', 201);
 	} catch (e) {
 		if (e?.message === 'INSERT_REQUEST_FAILED') {
-			return fail(res, 'Không thể tạo yêu cầu mượn (không lấy được request id)', 'INTERNAL_ERROR', 500);
+			return fail(res, 'Không thể tạo yêu cầu mượn', 'INTERNAL_ERROR', 500);
 		}
-
-		console.error('[borrowController.taoYeuCau] error.message:', e?.message);
-
-		console.error('[borrowController.taoYeuCau] error.stack:', e?.stack);
-	
-		console.error('[borrowController.taoYeuCau] sequelize/original:', e?.original || e);
+		if (process.env.NODE_ENV !== 'production') {
+			// eslint-disable-next-line no-console
+			console.error('[borrowController.taoYeuCau] error:', e?.message, e?.original?.code);
+		}
 
 		if (String(e?.message || '').includes('Positional replacement (?)')) {
 			return fail(res, 'Dữ liệu gửi lên không hợp lệ/thiếu, vui lòng kiểm tra lại payload', 'VALIDATION_ERROR', 400);
@@ -109,11 +83,9 @@ const taoYeuCau = async (req, res) => {
 		if (e?.message === 'INVALID_ITEM') {
 			return fail(res, 'Danh sách thiết bị không hợp lệ', 'VALIDATION_ERROR', 400);
 		}
-		// MySQL FK violation
 		if (e?.original?.code === 'ER_NO_REFERENCED_ROW_2') {
-			return fail(res, 'Thiết bị không tồn tại hoặc user không hợp lệ', 'CONFLICT', 409);
+			return fail(res, 'Thiết bị không tồn tại', 'CONFLICT', 409);
 		}
-		// Invalid DATE
 		if (e?.original?.code === 'ER_TRUNCATED_WRONG_VALUE') {
 			return fail(res, 'Ngày mượn/trả không hợp lệ', 'VALIDATION_ERROR', 400);
 		}
