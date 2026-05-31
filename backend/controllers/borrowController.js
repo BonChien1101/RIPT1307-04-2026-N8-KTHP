@@ -8,12 +8,9 @@ const { ok, fail } = require('../utils/response');
 
 const taoYeuCau = async (req, res) => {
 	try {
-		// Debug input để đối chiếu với FE khi deploy Render
-		// eslint-disable-next-line no-console
+
 		console.log('BODY =', req.body);
-		// eslint-disable-next-line no-console
 		console.log('PARAMS =', req.params);
-		// eslint-disable-next-line no-console
 		console.log('USER =', req.user);
 
 		const nguoiDungId = req.user?.id;
@@ -36,8 +33,7 @@ const taoYeuCau = async (req, res) => {
 			);
 		}
 
-		// Validate tối thiểu để tránh rollback mù: item thiếu equipment_id/quantity, hoặc date format sai.
-		// MySQL DATE thường nhận 'YYYY-MM-DD'.
+	
 		if (!/^\d{4}-\d{2}-\d{2}$/.test(String(borrowDate)) || !/^\d{4}-\d{2}-\d{2}$/.test(String(returnDate))) {
 			return fail(res, 'Ngày mượn/trả không hợp lệ (YYYY-MM-DD)', 'VALIDATION_ERROR', 400);
 		}
@@ -53,7 +49,6 @@ const taoYeuCau = async (req, res) => {
 
 		const ketQua = await sequelize.transaction(async (t) => {
 			const rqReplacements = [nguoiDungId, borrowDate, returnDate, note ?? null];
-			// eslint-disable-next-line no-console
 			console.log('[borrow_requests.insert] replacements =', rqReplacements);
 
 			const [rq] = await sequelize.query(
@@ -62,7 +57,19 @@ const taoYeuCau = async (req, res) => {
 				{ replacements: rqReplacements, transaction: t }
 			);
 
-			const requestId = rq.insertId;
+			// MySQL/Sequelize trả về metadata khác nhau tuỳ config:
+			// - Thường là object có insertId
+			// - Một số môi trường trả về mảng/tuple hoặc property `0`
+			const requestId =
+				rq?.insertId ??
+				rq?.[0]?.insertId ??
+				rq?.[0]?.id ??
+				rq?.[0];
+			if (!requestId) {
+				// eslint-disable-next-line no-console
+				console.error('[borrow_requests.insert] metadata =', rq);
+				throw new Error('INSERT_REQUEST_FAILED');
+			}
 			for (const item of items) {
 				const thietBiId = Number(item?.equipment_id);
 				const soLuong = Number(item?.quantity || 1);
@@ -71,7 +78,6 @@ const taoYeuCau = async (req, res) => {
 				}
 
 				const itemReplacements = [requestId, thietBiId, soLuong];
-				// eslint-disable-next-line no-console
 				console.log('[borrow_items.insert] replacements =', itemReplacements);
 
 				await sequelize.query(
@@ -86,15 +92,16 @@ const taoYeuCau = async (req, res) => {
 
 		return ok(res, { id: ketQua.requestId, status: 'pending' }, 'Tạo yêu cầu mượn thành công', 201);
 	} catch (e) {
-		// Log chi tiết để debug trên Render (rollback trong transaction thường do lỗi insert borrow_items / FK constraint)
-		// eslint-disable-next-line no-console
+		if (e?.message === 'INSERT_REQUEST_FAILED') {
+			return fail(res, 'Không thể tạo yêu cầu mượn (không lấy được request id)', 'INTERNAL_ERROR', 500);
+		}
+
 		console.error('[borrowController.taoYeuCau] error.message:', e?.message);
-		// eslint-disable-next-line no-console
+
 		console.error('[borrowController.taoYeuCau] error.stack:', e?.stack);
-		// eslint-disable-next-line no-console
+	
 		console.error('[borrowController.taoYeuCau] sequelize/original:', e?.original || e);
 
-		// Lỗi positional replacement: replacements thiếu phần tử (thường do biến undefined)
 		if (String(e?.message || '').includes('Positional replacement (?)')) {
 			return fail(res, 'Dữ liệu gửi lên không hợp lệ/thiếu, vui lòng kiểm tra lại payload', 'VALIDATION_ERROR', 400);
 		}
