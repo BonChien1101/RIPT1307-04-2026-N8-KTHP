@@ -3,6 +3,25 @@ const { ok, fail } = require('../utils/response');
 
 const { QueryTypes } = require('sequelize');
 
+const toPlainObject = (v) => {
+	if (v == null) return v;
+	try {
+		return JSON.parse(JSON.stringify(v));
+	} catch {
+		return v;
+	}
+};
+
+const extractInsertId = (rq) => {
+	if (rq == null) return undefined;
+	if (typeof rq === 'number') return rq;
+	if (typeof rq?.insertId === 'number') return rq.insertId;
+	if (typeof rq?.[0]?.insertId === 'number') return rq[0].insertId;
+	if (typeof rq?.[0] === 'number') return rq[0];
+	if (typeof rq?.[1]?.insertId === 'number') return rq[1].insertId;
+	return undefined;
+};
+
 const taoYeuCau = async (req, res) => {
 	try {
 		const nguoiDungId = req.user?.id;
@@ -40,27 +59,45 @@ const taoYeuCau = async (req, res) => {
 		}
 
 		const ketQua = await sequelize.transaction(async (t) => {
-			const rq = await sequelize.query(
-				`INSERT INTO borrow_requests (user_id, borrow_date, expected_return_date, status, note, created_at, updated_at)
-				 VALUES (?, ?, ?, 'pending', ?, NOW(), NOW())`,
-				{ replacements: [nguoiDungId, borrowDate, returnDate, note ?? null], transaction: t, type: QueryTypes.INSERT }
-			);
-
+			let rq;
+			try {
+				rq = await sequelize.query(
+					`INSERT INTO borrow_requests (user_id, borrow_date, expected_return_date, status, note, created_at, updated_at)
+					 VALUES (?, ?, ?, 'pending', ?, NOW(), NOW())`,
+					{ replacements: [nguoiDungId, borrowDate, returnDate, note ?? null], transaction: t, type: QueryTypes.INSERT }
+				);
 	
-			const requestId = rq?.insertId ?? rq?.[0]?.insertId;
-			if (!requestId) throw new Error('INSERT_REQUEST_FAILED');
+				console.log('[borrow_requests.insert] rq =', toPlainObject(rq));
+			} catch (err) {
+				console.error('[borrow_requests.insert] error =', err);
+				throw err;
+			}
+
+			const requestId = extractInsertId(rq);
+			if (!requestId) {
+				const e = new Error('INSERT_REQUEST_FAILED');
+				e.meta = { rq: toPlainObject(rq) };
+				throw e;
+			}
 			for (const item of items) {
 				const thietBiId = Number(item?.equipment_id);
 				const soLuong = Number(item?.quantity || 1);
 				if (!thietBiId || !Number.isFinite(soLuong) || soLuong <= 0) {
 					throw new Error('INVALID_ITEM');
 				}
-
-				await sequelize.query(
-					`INSERT INTO borrow_items (request_id, equipment_id, quantity)
-					 VALUES (?, ?, ?)`,
-					{ replacements: [requestId, thietBiId, soLuong], transaction: t, type: QueryTypes.INSERT }
-				);
+				try {
+					await sequelize.query(
+						`INSERT INTO borrow_items (request_id, equipment_id, quantity)
+						 VALUES (?, ?, ?)`,
+						{ replacements: [requestId, thietBiId, soLuong], transaction: t, type: QueryTypes.INSERT }
+					);
+				} catch (err) {
+					err.statement = 'INSERT_BORROW_ITEMS';
+					err.replacements = [requestId, thietBiId, soLuong];
+	
+					console.error('[borrow_items.insert] error =', err);
+					throw err;
+				}
 			}
 
 			return { requestId };
@@ -71,9 +108,24 @@ const taoYeuCau = async (req, res) => {
 		if (e?.message === 'INSERT_REQUEST_FAILED') {
 			return fail(res, 'Không thể tạo yêu cầu mượn', 'INTERNAL_ERROR', 500);
 		}
-		if (process.env.NODE_ENV !== 'production') {
-			// eslint-disable-next-line no-console
-			console.error('[borrowController.taoYeuCau] error:', e?.message, e?.original?.code);
+		console.error('[borrowController.taoYeuCau] error =', e);
+
+		console.error('[borrowController.taoYeuCau] error.message =', e?.message);
+
+		console.error('[borrowController.taoYeuCau] error.stack =', e?.stack);
+
+		console.error('[borrowController.taoYeuCau] error.original =', e?.original);
+		if (e?.meta) {
+	
+			console.error('[borrowController.taoYeuCau] meta =', toPlainObject(e.meta));
+		}
+		if (e?.statement) {
+
+			console.error('[borrowController.taoYeuCau] statement =', e.statement);
+		}
+		if (e?.replacements) {
+
+			console.error('[borrowController.taoYeuCau] replacements =', e.replacements);
 		}
 
 		if (String(e?.message || '').includes('Positional replacement (?)')) {
