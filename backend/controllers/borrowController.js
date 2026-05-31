@@ -8,12 +8,32 @@ const { ok, fail } = require('../utils/response');
 
 const taoYeuCau = async (req, res) => {
 	try {
+		// Debug input để đối chiếu với FE khi deploy Render
+		// eslint-disable-next-line no-console
+		console.log('BODY =', req.body);
+		// eslint-disable-next-line no-console
+		console.log('PARAMS =', req.params);
+		// eslint-disable-next-line no-console
+		console.log('USER =', req.user);
+
 		const nguoiDungId = req.user?.id;
 		if (!nguoiDungId) return fail(res, 'Bạn cần đăng nhập', 'AUTH_REQUIRED', 401);
 
 		const { borrow_date: borrowDate, expected_return_date: returnDate, note, items } = req.body || {};
 		if (!borrowDate || !returnDate || !Array.isArray(items) || items.length === 0) {
-			return fail(res, 'Thiếu dữ liệu yêu cầu mượn', 'VALIDATION_ERROR', 400);
+			return fail(
+				res,
+				'Thiếu dữ liệu yêu cầu mượn',
+				'VALIDATION_ERROR',
+				400,
+				[
+					...(!borrowDate ? [{ field: 'borrow_date', message: 'borrow_date là bắt buộc' }] : []),
+					...(!returnDate ? [{ field: 'expected_return_date', message: 'expected_return_date là bắt buộc' }] : []),
+					...(!Array.isArray(items) || items.length === 0
+						? [{ field: 'items', message: 'items phải là mảng và không được rỗng' }]
+						: []),
+				]
+			);
 		}
 
 		// Validate tối thiểu để tránh rollback mù: item thiếu equipment_id/quantity, hoặc date format sai.
@@ -32,10 +52,14 @@ const taoYeuCau = async (req, res) => {
 		}
 
 		const ketQua = await sequelize.transaction(async (t) => {
+			const rqReplacements = [nguoiDungId, borrowDate, returnDate, note ?? null];
+			// eslint-disable-next-line no-console
+			console.log('[borrow_requests.insert] replacements =', rqReplacements);
+
 			const [rq] = await sequelize.query(
 				`INSERT INTO borrow_requests (user_id, borrow_date, expected_return_date, status, note, created_at, updated_at)
 				 VALUES (?, ?, ?, 'pending', ?, NOW(), NOW())`,
-				{ replacements: [nguoiDungId, borrowDate, returnDate, note || null], transaction: t }
+				{ replacements: rqReplacements, transaction: t }
 			);
 
 			const requestId = rq.insertId;
@@ -46,10 +70,14 @@ const taoYeuCau = async (req, res) => {
 					throw new Error('INVALID_ITEM');
 				}
 
+				const itemReplacements = [requestId, thietBiId, soLuong];
+				// eslint-disable-next-line no-console
+				console.log('[borrow_items.insert] replacements =', itemReplacements);
+
 				await sequelize.query(
 					`INSERT INTO borrow_items (request_id, equipment_id, quantity)
 					 VALUES (?, ?, ?)`,
-					{ replacements: [requestId, thietBiId, soLuong], transaction: t }
+					{ replacements: itemReplacements, transaction: t }
 				);
 			}
 
@@ -65,6 +93,11 @@ const taoYeuCau = async (req, res) => {
 		console.error('[borrowController.taoYeuCau] error.stack:', e?.stack);
 		// eslint-disable-next-line no-console
 		console.error('[borrowController.taoYeuCau] sequelize/original:', e?.original || e);
+
+		// Lỗi positional replacement: replacements thiếu phần tử (thường do biến undefined)
+		if (String(e?.message || '').includes('Positional replacement (?)')) {
+			return fail(res, 'Dữ liệu gửi lên không hợp lệ/thiếu, vui lòng kiểm tra lại payload', 'VALIDATION_ERROR', 400);
+		}
 
 		if (e?.message === 'INVALID_ITEM') {
 			return fail(res, 'Danh sách thiết bị không hợp lệ', 'VALIDATION_ERROR', 400);
