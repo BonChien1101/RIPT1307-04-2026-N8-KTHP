@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React from 'react';
-import { ApplyPluginsType, dynamic } from 'D:/FINAL WEB/frontend/node_modules/@umijs/runtime';
+import { ApplyPluginsType, dynamic } from 'D:/BTLCK_NHOM8/frontend/node_modules/@umijs/runtime';
 import * as umiExports from './umiExports';
 import { plugin } from './plugin';
 import LoadingComponent from '@ant-design/pro-layout/es/PageLoading';
@@ -9,7 +9,7 @@ export function getRoutes() {
   const routes = [
   {
     "path": "/",
-    "component": dynamic({ loader: () => import(/* webpackChunkName: '.umi__plugin-layout__Layout' */'D:/FINAL WEB/frontend/src/.umi/plugin-layout/Layout.tsx'), loading: LoadingComponent}),
+    "component": dynamic({ loader: () => import(/* webpackChunkName: '.umi__plugin-layout__Layout' */'D:/BTLCK_NHOM8/frontend/src/.umi/plugin-layout/Layout.tsx'), loading: LoadingComponent}),
     "routes": [
       {
         "path": "/~demos/:uuid",
@@ -18,7 +18,7 @@ export function getRoutes() {
         "component": ((props) => dynamic({
           loader: async () => {
             const React = await import('react');
-            const { default: getDemoRenderArgs } = await import(/* webpackChunkName: 'dumi_demos' */ 'D:/FINAL WEB/frontend/node_modules/@umijs/preset-dumi/lib/plugins/features/demo/getDemoRenderArgs');
+            const { default: getDemoRenderArgs } = await import(/* webpackChunkName: 'dumi_demos' */ 'D:/BTLCK_NHOM8/frontend/node_modules/@umijs/preset-dumi/lib/plugins/features/demo/getDemoRenderArgs');
             const { default: Previewer } = await import(/* webpackChunkName: 'dumi_demos' */ 'dumi-theme-default/es/builtins/Previewer.js');
             const { usePrefersColor, context } = await import(/* webpackChunkName: 'dumi_demos' */ 'dumi/theme');
 
@@ -65,7 +65,7 @@ export function getRoutes() {
         "__dumiRoot": true,
         "layout": false,
         "path": "/~docs",
-        "wrappers": [dynamic({ loader: () => import(/* webpackChunkName: 'wrappers' */'../dumi/layout'), loading: LoadingComponent}), dynamic({ loader: () => import(/* webpackChunkName: 'wrappers' */'D:/FINAL WEB/frontend/node_modules/dumi-theme-default/es/layout.js'), loading: LoadingComponent})],
+        "wrappers": [dynamic({ loader: () => import(/* webpackChunkName: 'wrappers' */'../dumi/layout'), loading: LoadingComponent}), dynamic({ loader: () => import(/* webpackChunkName: 'wrappers' */'D:/BTLCK_NHOM8/frontend/node_modules/dumi-theme-default/es/layout.js'), loading: LoadingComponent})],
         "routes": [],
         "title": "ant-design-pro",
         "component": (props) => props.children
@@ -73,21 +73,21 @@ export function getRoutes() {
       {
         "path": "/",
         "name": "login",
-        "component": dynamic({ loader: () => import(/* webpackChunkName: 'p__Login' */'D:/FINAL WEB/frontend/src/pages/Login'), loading: LoadingComponent}),
+        "component": dynamic({ loader: () => import(/* webpackChunkName: 'p__Login' */'D:/BTLCK_NHOM8/frontend/src/pages/Login'), loading: LoadingComponent}),
         "layout": false,
         "exact": true
       },
       {
         "path": "/student",
         "name": "student",
-        "component": dynamic({ loader: () => import(/* webpackChunkName: 'p__Student' */'D:/FINAL WEB/frontend/src/pages/Student'), loading: LoadingComponent}),
+        "component": dynamic({ loader: () => import(/* webpackChunkName: 'p__Student' */'D:/BTLCK_NHOM8/frontend/src/pages/Student'), loading: LoadingComponent}),
         "access": "canStudent",
         "exact": true
       },
       {
         "path": "/admin",
         "name": "admin",
-        "component": dynamic({ loader: () => import(/* webpackChunkName: 'p__Admin' */'D:/FINAL WEB/frontend/src/pages/Admin'), loading: LoadingComponent}),
+        "component": dynamic({ loader: () => import(/* webpackChunkName: 'p__Admin' */'D:/BTLCK_NHOM8/frontend/src/pages/Admin'), loading: LoadingComponent}),
         "access": "canAdmin",
         "exact": true
       }

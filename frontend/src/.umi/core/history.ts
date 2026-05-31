@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { createHashHistory, History } from 'D:/FINAL WEB/frontend/node_modules/@umijs/runtime';
+import { createHashHistory, History } from 'D:/BTLCK_NHOM8/frontend/node_modules/@umijs/runtime';
 
 let options = {
   "basename": "/"

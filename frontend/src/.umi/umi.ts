@@ -4,8 +4,8 @@ import '@@/core/devScripts';
 import { plugin } from './core/plugin';
 import './core/pluginRegister';
 import { createHistory } from './core/history';
-import { ApplyPluginsType } from 'D:/FINAL WEB/frontend/node_modules/@umijs/runtime';
-import { renderClient } from 'D:/FINAL WEB/frontend/node_modules/@umijs/renderer-react/dist/index.js';
+import { ApplyPluginsType } from 'D:/BTLCK_NHOM8/frontend/node_modules/@umijs/runtime';
+import { renderClient } from 'D:/BTLCK_NHOM8/frontend/node_modules/@umijs/renderer-react/dist/index.js';
 import { getRoutes } from './core/routes';
 
 
