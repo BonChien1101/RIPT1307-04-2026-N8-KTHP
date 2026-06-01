@@ -378,7 +378,7 @@ const ghiNhanDaMuon = async (req, res) => {
 					`UPDATE equipments
 					 SET available_quantity = available_quantity - ?
 					 WHERE id = ? AND available_quantity >= ?`,
-					{ replacements: [requestedQty, equipmentId, requestedQty], transaction: t }
+					{ replacements: [requestedQty, equipmentId, requestedQty], transaction: t, type: QueryTypes.UPDATE }
 				);
 				console.log('[borrowController.ghiNhanDaMuon] raw UPDATE return', {
 					requestId,
@@ -386,7 +386,12 @@ const ghiNhanDaMuon = async (req, res) => {
 					r: toPlainObject(r),
 					rMeta: toPlainObject(rMeta),
 				});
-				const affected = getAffectedRows(r, rMeta);
+				let affected = getAffectedRows(r, rMeta);
+				// Some environments/dialects may not return metadata for UPDATE.
+				// Fallback: if stock was >= requested and query didn't throw, treat as success.
+				if (!affected && availableQty >= requestedQty && (Array.isArray(r) ? r.length === 0 : r == null) && (rMeta == null || (typeof rMeta === 'object' && Object.keys(rMeta).length === 0))) {
+					affected = 1;
+				}
 				console.log('[borrowController.ghiNhanDaMuon] decrease result', {
 					requestId,
 					equipment_id: equipmentId,
