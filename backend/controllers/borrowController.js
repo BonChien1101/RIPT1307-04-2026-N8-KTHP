@@ -72,7 +72,7 @@ const taoYeuCau = async (req, res) => {
 			try {
 				rq = await sequelize.query(
 					`INSERT INTO borrow_requests (user_id, borrow_date, expected_return_date, status, note, created_at, updated_at)
-					 VALUES (?, ?, ?, 'pending', ?, NOW(), NOW())`,
+					 VALUES (?, ?, ?, 'pending', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
 					{ replacements: [nguoiDungId, borrowDate, returnDate, note ?? null], transaction: t, type: QueryTypes.INSERT }
 				);
 	
@@ -373,7 +373,7 @@ const ghiNhanDaMuon = async (req, res) => {
 
 			try {
 				await sequelize.query(
-					`UPDATE borrow_requests SET status = 'borrowed', updated_at = NOW() WHERE id = ?`,
+					`UPDATE borrow_requests SET status = 'borrowed', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
 					{ replacements: [requestId], transaction: t }
 				);
 			} catch (err) {
@@ -391,7 +391,7 @@ const ghiNhanDaMuon = async (req, res) => {
 		console.error('[borrowController.ghiNhanDaMuon] error.stack =', e?.stack);
 	
 		console.error('[borrowController.ghiNhanDaMuon] error.original =', e?.original);
-		if (e?.statement) {p
+		if (e?.statement) {
 
 			console.error('[borrowController.ghiNhanDaMuon] statement =', e.statement);
 		}
