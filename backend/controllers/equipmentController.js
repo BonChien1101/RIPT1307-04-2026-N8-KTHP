@@ -5,6 +5,7 @@
 // DELETE /equipments/:id
 
 const sequelize = require('../config/database');
+const { QueryTypes } = require('sequelize');
 const { ok, fail } = require('../utils/response');
 const { getInsertedId, getAffectedRows } = require('../utils/sqlCompat');
 
@@ -160,7 +161,7 @@ const capNhat = async (req, res) => {
 
 		const [result, metadata] = await sequelize.query(
 			`UPDATE equipments SET ${truongCapNhat.join(', ')} WHERE id = ?`,
-			{ replacements: thamSo }
+			{ replacements: thamSo, type: QueryTypes.UPDATE }
 		);
 		if (!getAffectedRows(result, metadata)) return fail(res, 'Không tìm thấy thiết bị', 'NOT_FOUND', 404);
 		return ok(res, { id: thietBiId }, 'Cập nhật thiết bị thành công');
@@ -173,7 +174,10 @@ const xoa = async (req, res) => {
 	try {
 		const thietBiId = Number(req.params.id);
 		if (!thietBiId) return fail(res, 'ID không hợp lệ', 'VALIDATION_ERROR', 400);
-		const [result, metadata] = await sequelize.query('DELETE FROM equipments WHERE id = ?', { replacements: [thietBiId] });
+		const [result, metadata] = await sequelize.query('DELETE FROM equipments WHERE id = ?', {
+			replacements: [thietBiId],
+			type: QueryTypes.DELETE,
+		});
 		if (!getAffectedRows(result, metadata)) return fail(res, 'Không tìm thấy thiết bị', 'NOT_FOUND', 404);
 		return ok(res, { id: thietBiId }, 'Xóa thiết bị thành công');
 	} catch (e) {

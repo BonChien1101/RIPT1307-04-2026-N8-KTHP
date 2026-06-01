@@ -43,6 +43,7 @@ import {
   TeamOutlined,
   BulbOutlined,
   ThunderboltOutlined,
+  MailOutlined,
 } from '@ant-design/icons';
 import './styles.less';
 import { isStudentRole } from '../../utils/auth';
@@ -54,6 +55,124 @@ import MaintenancePage from './MaintenancePage';
 import TicketsPage from './TicketsPage';
 import PenaltiesPage from './PenaltiesPage';
 import ChatBot from '../../components/ChatBot';
+
+const AdminEmailWarningPanel: React.FC<{ apiUrl: string; onUnauthorized: () => void }> = ({ apiUrl, onUnauthorized }) => {
+  const [form] = Form.useForm();
+  const [loading, setLoading] = useState(false);
+  const [borrowed, setBorrowed] = useState<any[]>([]);
+  const [borrowedLoading, setBorrowedLoading] = useState(false);
+
+  const fetchBorrowed = useCallback(async () => {
+    setBorrowedLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${apiUrl}/admin/borrowed`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.status === 401) {
+        onUnauthorized();
+        return;
+      }
+      if (res.ok) {
+        const data = await res.json();
+        setBorrowed(data?.data || []);
+        return;
+      }
+      // eslint-disable-next-line no-console
+      console.error('[AdminEmailWarningPanel.fetchBorrowed] API error', res.status, await res.text());
+    } catch {}
+    setBorrowedLoading(false);
+  }, [apiUrl, onUnauthorized]);
+
+  useEffect(() => {
+    fetchBorrowed();
+  }, [fetchBorrowed]);
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const values = await form.validateFields();
+      const res = await fetch(`${apiUrl}/admin/emails/borrow-warning`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ request_id: values.request_id, content: values.content }),
+      });
+      if (res.status === 401) {
+        onUnauthorized();
+        return;
+      }
+      if (res.ok) {
+        const data = await res.json();
+        const previewUrl = data?.data?.previewUrl;
+        message.success(previewUrl ? `Đã gửi email! (Preview: ${previewUrl})` : 'Đã gửi email cảnh báo!');
+        form.resetFields();
+        return;
+      }
+      let detail = '';
+      try {
+        const data = await res.json();
+        // eslint-disable-next-line no-console
+        console.error('[AdminEmailWarningPanel] API error', res.status, data);
+        detail = data?.message || data?.error || data?.code || '';
+      } catch {
+        try {
+          const text = await res.text();
+          // eslint-disable-next-line no-console
+          console.error('[AdminEmailWarningPanel] API error', res.status, text);
+          detail = text;
+        } catch {}
+      }
+      if (res.status === 404) {
+        message.error('API gửi email không tồn tại (404). Có thể backend Render chưa deploy bản mới hoặc API_URL đang trỏ sai.');
+      } else {
+        message.error(detail ? `Gửi email thất bại: ${detail}` : `Gửi email thất bại (${res.status})`);
+      }
+    } catch (e: any) {
+      message.error(e?.message || 'Gửi email thất bại');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card title="Gửi email cảnh báo (thủ công)" style={{ marginTop: 12 }}>
+      <Form form={form} layout="vertical">
+        <Form.Item
+          label="Chọn người đang mượn / phiếu mượn"
+          name="request_id"
+          rules={[{ required: true, message: 'Vui lòng chọn đối tượng' }]}
+        >
+          <Select
+            showSearch
+            loading={borrowedLoading}
+            placeholder="Chọn phiếu đang mượn..."
+            optionFilterProp="label"
+            options={(borrowed || []).map((r: any) => ({
+              value: r.request_id,
+              label: `#${r.request_id} • ${r.full_name || 'N/A'} • ${r.email || 'no-email'} • ${r.equipments || ''} • hạn ${r.expected_return_date || ''}`,
+            }))}
+          />
+        </Form.Item>
+        <Form.Item
+          label="Nội dung cảnh báo"
+          name="content"
+          rules={[{ required: true, message: 'Vui lòng nhập nội dung' }]}
+        >
+          <Input.TextArea rows={6} placeholder="Nhập nội dung email gửi cho người mượn..." />
+        </Form.Item>
+        <Space>
+          <Button type="primary" icon={<MailOutlined />} loading={loading} onClick={handleSubmit}>
+            Gửi email
+          </Button>
+          <Button onClick={() => form.resetFields()}>
+            Xóa nhập
+          </Button>
+        </Space>
+      </Form>
+    </Card>
+  );
+};
 
 const { Header, Content, Sider } = Layout;
 
@@ -118,6 +237,7 @@ const Admin: React.FC = () => {
   const [selectedRequestDetail, setSelectedRequestDetail] = useState<BorrowRequestDetail | null>(null);
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
   const [selectedEquipmentDetail, setSelectedEquipmentDetail] = useState<EquipmentDetail | null>(null);
+
   const [topEquipment, setTopEquipment] = useState<Array<{ id: number; name: string; tongMuon: number }>>([]);
   const [topEquipmentLoading, setTopEquipmentLoading] = useState(false);
   const [statYear, setStatYear] = useState(new Date().getFullYear());
@@ -376,6 +496,7 @@ const Admin: React.FC = () => {
     window.location.hash = '#/';
     window.location.reload();
   };
+
 
   const openAddEquipmentModal = () => {
     setSelectedEquipment(null);
@@ -758,6 +879,7 @@ const Admin: React.FC = () => {
     { key: 'tickets', icon: <BugOutlined />, label: 'Báo Lỗi' },
     { key: 'penalties', icon: <DollarOutlined />, label: 'Phạt' },
     { key: 'users_trust', icon: <TeamOutlined />, label: 'Điểm Uy Tín' },
+  { key: 'admin_email', icon: <MailOutlined />, label: 'Email cảnh báo' },
   ];
 
   const userMenuItems = [{ key: 'logout', icon: <LogoutOutlined />, label: 'Đăng Xuất' }];
@@ -875,6 +997,13 @@ const Admin: React.FC = () => {
                   size="small"
                 />
               </Card>
+            )}
+
+            {activeTab === 'admin_email' && (
+              <div>
+                <h2 style={{ marginBottom: 16 }}><MailOutlined /> Email cảnh báo</h2>
+                <AdminEmailWarningPanel apiUrl={apiUrl} onUnauthorized={handleUnauthorized} />
+              </div>
             )}
           </Content>
         </Layout>
