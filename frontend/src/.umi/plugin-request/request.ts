@@ -1,7 +1,6 @@
 // @ts-nocheck
 /**
-
- * Base on https://github.com/umijs/D:/BTLCK_NHOM8/frontend/node_modules/umi-reques
+ * Base on https://github.com/umijs/D:/BTLCK_NHOM8/frontend/node_modules/umi-request
  */
 import {
   extend,
@@ -14,7 +13,6 @@ import {
   RequestResponse,
   RequestInterceptor,
   ResponseInterceptor,
-
 } from 'D:/BTLCK_NHOM8/frontend/node_modules/umi-request';
 // @ts-ignore
 
@@ -41,7 +39,6 @@ import {
   PaginatedParams,
   PaginatedResult,
 } from 'D:/BTLCK_NHOM8/frontend/node_modules/@ahooksjs/use-request/lib/types';
-
 
 type ResultWithData<T = any> = { data?: T; [key: string]: any };
 
