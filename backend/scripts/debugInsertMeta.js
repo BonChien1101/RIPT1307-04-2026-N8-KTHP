@@ -11,7 +11,7 @@ const { QueryTypes } = require('sequelize');
 
     const rq = await sequelize.query(
       `INSERT INTO borrow_requests (user_id, borrow_date, expected_return_date, status, note, created_at, updated_at)
-       VALUES (?, ?, ?, 'pending', ?, NOW(), NOW())`,
+  VALUES (?, ?, ?, 'pending', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
       {
         replacements: [1, '2026-01-01', '2026-01-02', null],
         type: QueryTypes.INSERT,
