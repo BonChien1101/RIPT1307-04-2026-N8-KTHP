@@ -10,6 +10,9 @@ const getInsertedId = (...values) => {
 const getAffectedRows = (...values) => {
 	for (const result of values.flat()) {
 		if (!result) continue;
+		// Some dialects/versions return affected row count as a plain number
+		// (e.g., QueryTypes.UPDATE on sqlite / some mysql drivers).
+		if (Number.isFinite(result)) return result;
 		// Sequelize raw queries return different shapes by dialect and by QueryTypes.
 		// MySQL often returns OkPacket-like objects (affectedRows) either as the first
 		// element in an array or as the 2nd "metadata" value from sequelize.query().
