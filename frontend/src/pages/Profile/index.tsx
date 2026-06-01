@@ -8,29 +8,17 @@ import {
   Button,
   message,
   Space,
-  Divider,
-  List,
-  Tag,
-  Modal,
   Row,
   Col,
   Descriptions,
   Spin,
-  Empty,
-  Popconfirm,
-  Tooltip,
-  Select,
 } from 'antd';
 import {
   EditOutlined,
   SaveOutlined,
   CloseOutlined,
-  DeleteOutlined,
-  PlusOutlined,
   UserOutlined,
   MailOutlined,
-  PhoneOutlined,
-  HomeOutlined,
   CalendarOutlined,
 } from '@ant-design/icons';
 import './styles.less';
@@ -45,22 +33,12 @@ interface UserInfo {
   updated_at?: string;
 }
 
-interface ContactInfo {
-  id: string;
-  type: 'phone' | 'address' | 'note';
-  value: string;
-}
-
 const Profile: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
-  const [contactInfo, setContactInfo] = useState<ContactInfo[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [form] = Form.useForm();
-  const [contactForm] = Form.useForm();
-  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
-  const [editingContactId, setEditingContactId] = useState<string | null>(null);
 
   const apiHost = (window as any).__API_URL__ || process.env.API_URL || window.location.origin;
   const apiUrl = `${apiHost}/api`;
@@ -97,16 +75,6 @@ const Profile: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               email: userInfo.email || '',
             });
           }, 0);
-        }
-
-        // Load contact info from localStorage
-        const savedContactInfo = localStorage.getItem('userContactInfo');
-        if (savedContactInfo) {
-          try {
-            setContactInfo(JSON.parse(savedContactInfo));
-          } catch (e) {
-            // Invalid JSON, skip
-          }
         }
       } catch (error: any) {
         console.error('Error loading user info:', error);
@@ -166,6 +134,9 @@ const Profile: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         user.email = data.data.email;
         localStorage.setItem('user', JSON.stringify(user));
 
+        // Dispatch custom event to update header in real-time
+        window.dispatchEvent(new CustomEvent('userUpdated', { detail: user }));
+
         // If email changed, inform user about login account change
         if (data.data.email !== userInfo?.email) {
           message.warning(`Email tài khoản đã thay đổi thành: ${data.data.email}. Vui lòng đăng nhập lại với email mới!`);
@@ -186,81 +157,7 @@ const Profile: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     }
   };
 
-  // Add new contact info
-  const handleAddContact = async (values: any) => {
-    try {
-      const newContact: ContactInfo = {
-        id: Date.now().toString(),
-        type: values.type,
-        value: values.value,
-      };
 
-      const updatedContactInfo = [...contactInfo, newContact];
-      setContactInfo(updatedContactInfo);
-      localStorage.setItem('userContactInfo', JSON.stringify(updatedContactInfo));
-
-      message.success('Thêm thông tin liên hệ thành công!');
-      contactForm.resetFields();
-      setIsContactModalOpen(false);
-    } catch (error: any) {
-      message.error(error.message || 'Lỗi thêm thông tin!');
-    }
-  };
-
-  // Update contact info
-  const handleUpdateContact = async (values: any) => {
-    try {
-      const updatedContactInfo = contactInfo.map((info) =>
-        info.id === editingContactId
-          ? { ...info, type: values.type, value: values.value }
-          : info
-      );
-
-      setContactInfo(updatedContactInfo);
-      localStorage.setItem('userContactInfo', JSON.stringify(updatedContactInfo));
-
-      message.success('Cập nhật thông tin liên hệ thành công!');
-      contactForm.resetFields();
-      setIsContactModalOpen(false);
-      setEditingContactId(null);
-    } catch (error: any) {
-      message.error(error.message || 'Lỗi cập nhật thông tin!');
-    }
-  };
-
-  // Delete contact info
-  const handleDeleteContact = (id: string) => {
-    const updatedContactInfo = contactInfo.filter((info) => info.id !== id);
-    setContactInfo(updatedContactInfo);
-    localStorage.setItem('userContactInfo', JSON.stringify(updatedContactInfo));
-    message.success('Xóa thông tin liên hệ thành công!');
-  };
-
-  // Open edit modal
-  const handleEditContact = (contact: ContactInfo) => {
-    setEditingContactId(contact.id);
-    contactForm.setFieldsValue({
-      type: contact.type,
-      value: contact.value,
-    });
-    setIsContactModalOpen(true);
-  };
-
-  // Open add modal
-  const handleAddContactClick = () => {
-    setEditingContactId(null);
-    contactForm.resetFields();
-    setIsContactModalOpen(true);
-  };
-
-  const getContactTypeLabel = (type: string) => {
-    const typeMap: Record<string, { label: string; icon: any; color: string }> = {
-      phone: { label: 'Điện thoại', icon: <PhoneOutlined />, color: 'blue' },
-      address: { label: 'Địa chỉ', icon: <HomeOutlined />, color: 'green' },
-      note: { label: 'Ghi chú', icon: <EditOutlined />, color: 'orange' },
-    };
-    return typeMap[type] || { label: type, icon: null, color: 'default' };
-  };
 
   if (isLoadingUser) {
     return (
@@ -397,148 +294,7 @@ const Profile: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         )}
       </Card>
 
-      {/* Contact Information */}
-      <Card
-        title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <PhoneOutlined />
-            Thông Tin Liên Hệ
-          </div>
-        }
-        extra={
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAddContactClick}
-            size="small"
-          >
-            Thêm
-          </Button>
-        }
-        style={{ marginBottom: 24 }}
-      >
-        {contactInfo.length === 0 ? (
-          <Empty
-            description="Chưa có thông tin liên hệ"
-            style={{ marginTop: 16 }}
-          />
-        ) : (
-          <List
-            dataSource={contactInfo}
-            renderItem={(contact) => {
-              const typeInfo = getContactTypeLabel(contact.type);
-              return (
-                <List.Item
-                  key={contact.id}
-                  actions={[
-                    <Tooltip title="Chỉnh sửa">
-                      <Button
-                        type="text"
-                        icon={<EditOutlined />}
-                        onClick={() => handleEditContact(contact)}
-                        size="small"
-                      />
-                    </Tooltip>,
-                    <Popconfirm
-                      title="Xóa thông tin này?"
-                      onConfirm={() => handleDeleteContact(contact.id)}
-                      okText="Có"
-                      cancelText="Không"
-                    >
-                      <Tooltip title="Xóa">
-                        <Button
-                          type="text"
-                          danger
-                          icon={<DeleteOutlined />}
-                          size="small"
-                        />
-                      </Tooltip>
-                    </Popconfirm>,
-                  ]}
-                >
-                  <List.Item.Meta
-                    avatar={
-                      <Tag color={typeInfo.color}>
-                        {typeInfo.icon}
-                        {typeInfo.label}
-                      </Tag>
-                    }
-                    title={typeInfo.label}
-                    description={contact.value}
-                  />
-                </List.Item>
-              );
-            }}
-          />
-        )}
-      </Card>
 
-      {/* Contact Info Modal */}
-      <Modal
-        title={editingContactId ? 'Chỉnh Sửa Thông Tin Liên Hệ' : 'Thêm Thông Tin Liên Hệ'}
-        open={isContactModalOpen}
-        onCancel={() => {
-          setIsContactModalOpen(false);
-          contactForm.resetFields();
-          setEditingContactId(null);
-        }}
-        footer={null}
-        width={500}
-      >
-        <Form
-          form={contactForm}
-          layout="vertical"
-          onFinish={editingContactId ? handleUpdateContact : handleAddContact}
-        >
-          <Form.Item
-            label="Loại Thông Tin"
-            name="type"
-            rules={[{ required: true, message: 'Vui lòng chọn loại thông tin!' }]}
-          >
-            <Select
-              placeholder="Chọn loại thông tin"
-              options={[
-                { label: 'Điện thoại', value: 'phone' },
-                { label: 'Địa chỉ', value: 'address' },
-                { label: 'Ghi chú', value: 'note' },
-              ]}
-            />
-          </Form.Item>
-
-          <Form.Item
-            label="Nội Dung"
-            name="value"
-            rules={[{ required: true, message: 'Vui lòng nhập nội dung!' }]}
-          >
-            <Input.TextArea
-              placeholder="Nhập nội dung"
-              rows={3}
-              allowClear
-            />
-          </Form.Item>
-
-          <Form.Item>
-            <Space>
-              <Button
-                type="primary"
-                htmlType="submit"
-                icon={<SaveOutlined />}
-              >
-                {editingContactId ? 'Cập nhật' : 'Thêm'}
-              </Button>
-              <Button
-                onClick={() => {
-                  setIsContactModalOpen(false);
-                  contactForm.resetFields();
-                  setEditingContactId(null);
-                }}
-              >
-                Hủy
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
     </div>
   );
 };
