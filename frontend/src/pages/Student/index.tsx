@@ -295,6 +295,7 @@ const Student: React.FC = () => {
         form.resetFields();
         setSignature('');
         fetchBorrowHistory();
+        fetchEquipment();
       } else {
         const errData = await response.json();
         message.error(errData?.message || 'Gửi yêu cầu mượn thất bại!');
