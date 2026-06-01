@@ -108,6 +108,39 @@ const taoYeuCau = async (req, res) => {
 					console.error('[borrow_items.insert] error =', err);
 					throw err;
 				}
+
+				// Decrease available quantity immediately when request is created
+				try {
+					const [equipRows] = await sequelize.query(
+						`SELECT available_quantity FROM equipments WHERE id = ?`,
+						{ replacements: [thietBiId], transaction: t }
+					);
+					const availableQty = equipRows?.[0]?.available_quantity;
+					
+					if (availableQty == null) {
+						throw new Error('EQUIPMENT_NOT_FOUND');
+					}
+					if (availableQty < soLuong) {
+						throw new Error('INSUFFICIENT_STOCK');
+					}
+
+					await sequelize.query(
+						`UPDATE equipments SET available_quantity = available_quantity - ? WHERE id = ?`,
+						{ replacements: [soLuong, thietBiId], transaction: t, type: QueryTypes.UPDATE }
+					);
+					
+					console.log('[borrowController.taoYeuCau] decreased quantity', {
+						requestId,
+						equipment_id: thietBiId,
+						quantity_decreased: soLuong,
+						previous_quantity: availableQty,
+					});
+				} catch (err) {
+					err.statement = 'DECREASE_EQUIPMENT_QUANTITY';
+					err.replacements = [soLuong, thietBiId];
+					console.error('[borrowController.taoYeuCau] error decreasing quantity =', err);
+					throw err;
+				}
 			}
 
 			return { requestId };
@@ -150,6 +183,12 @@ const taoYeuCau = async (req, res) => {
 		}
 		if (e?.original?.code === 'ER_TRUNCATED_WRONG_VALUE') {
 			return fail(res, 'Ngày mượn/trả không hợp lệ', 'VALIDATION_ERROR', 400);
+		}
+		if (e?.message === 'INSUFFICIENT_STOCK') {
+			return fail(res, 'Không đủ số lượng thiết bị trong kho', 'CONFLICT', 409);
+		}
+		if (e?.message === 'EQUIPMENT_NOT_FOUND') {
+			return fail(res, 'Thiết bị không tồn tại', 'NOT_FOUND', 404);
 		}
 		return fail(res, 'Lỗi server khi tạo yêu cầu mượn', 'INTERNAL_ERROR', 500);
 	}
@@ -250,6 +289,35 @@ const updateBorrowRequestStatus = async ({ requestId, nguoiDuyetId, nextStatus, 
 	if (currentRequest.status === nextStatus) return { found: true, updated: true, status: currentRequest.status, noop: true };
 	if (currentRequest.status !== 'pending') return { found: true, updated: false, status: currentRequest.status };
 
+	// If rejecting, restore the reserved quantities
+	if (nextStatus === 'rejected') {
+		try {
+			const [items] = await sequelize.query(
+				`SELECT equipment_id, quantity FROM borrow_items WHERE request_id = ?`,
+				{ replacements: [requestId] }
+			);
+			
+			for (const item of items) {
+				const equipmentId = Number(item.equipment_id);
+				const qty = Number(item.quantity);
+				if (equipmentId && qty > 0) {
+					await sequelize.query(
+						`UPDATE equipments SET available_quantity = available_quantity + ? WHERE id = ?`,
+						{ replacements: [qty, equipmentId] }
+					);
+					console.log('[borrowController.updateBorrowRequestStatus] restored quantity on rejection', {
+						requestId,
+						equipment_id: equipmentId,
+						quantity_restored: qty,
+					});
+				}
+			}
+		} catch (err) {
+			console.error('[borrowController.updateBorrowRequestStatus] error restoring quantities =', err);
+			throw err;
+		}
+	}
+
 	if (nextStatus === 'approved') {
 		await sequelize.query(
 			`UPDATE borrow_requests
@@ -341,79 +409,22 @@ const ghiNhanDaMuon = async (req, res) => {
 
 		await sequelize.transaction(async (t) => {
 			const [reqRows] = await sequelize.query(
-				`SELECT status FROM borrow_requests WHERE id = ?`,
+				`SELECT id, status FROM borrow_requests WHERE id = ?`,
 				{ replacements: [requestId], transaction: t }
 			);
 			if (!reqRows.length) throw new Error('REQUEST_NOT_FOUND');
 			if (reqRows[0].status !== 'approved') throw new Error('INVALID_STATUS');
 
-			const [items] = await sequelize.query(
-				`SELECT equipment_id, quantity FROM borrow_items WHERE request_id = ?`,
+			// Quantities already decreased when request was created
+			// Just mark status as 'borrowed'
+			await sequelize.query(
+				`UPDATE borrow_requests SET status = 'borrowed', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
 				{ replacements: [requestId], transaction: t }
 			);
-			if (!items.length) throw new Error('REQUEST_NOT_FOUND');
 
-			for (const it of items) {
-				const equipmentId = Number(it.equipment_id);
-				const requestedQty = Number(it.quantity);
-				if (!equipmentId || !Number.isFinite(requestedQty) || requestedQty <= 0) throw new Error('INVALID_ITEM');
-
-				const [equipmentRows] = await sequelize.query(
-					`SELECT available_quantity
-					 FROM equipments
-					 WHERE id = ?`,
-					{ replacements: [equipmentId], transaction: t }
-				);
-				const availableQty = equipmentRows?.[0]?.available_quantity;
-				console.log('[borrowController.ghiNhanDaMuon] check stock', {
-					requestId,
-					equipment_id: equipmentId,
-					requested_quantity: requestedQty,
-					available_quantity: availableQty,
-				});
-
-				if (availableQty == null) throw new Error('OUT_OF_STOCK');
-
-				const [r, rMeta] = await sequelize.query(
-					`UPDATE equipments
-					 SET available_quantity = available_quantity - ?
-					 WHERE id = ? AND available_quantity >= ?`,
-					{ replacements: [requestedQty, equipmentId, requestedQty], transaction: t, type: QueryTypes.UPDATE }
-				);
-				console.log('[borrowController.ghiNhanDaMuon] raw UPDATE return', {
-					requestId,
-					equipment_id: equipmentId,
-					r: toPlainObject(r),
-					rMeta: toPlainObject(rMeta),
-				});
-				let affected = getAffectedRows(r, rMeta);
-				// Some environments/dialects may not return metadata for UPDATE.
-				// Fallback: if stock was >= requested and query didn't throw, treat as success.
-				if (!affected && availableQty >= requestedQty && (Array.isArray(r) ? r.length === 0 : r == null) && (rMeta == null || (typeof rMeta === 'object' && Object.keys(rMeta).length === 0))) {
-					affected = 1;
-				}
-				console.log('[borrowController.ghiNhanDaMuon] decrease result', {
-					requestId,
-					equipment_id: equipmentId,
-					requested_quantity: requestedQty,
-					affected_rows: affected,
-					r: toPlainObject(r),
-					rMeta: toPlainObject(rMeta),
-				});
-
-				if (!affected) throw new Error('OUT_OF_STOCK');
-			}
-
-			try {
-				await sequelize.query(
-					`UPDATE borrow_requests SET status = 'borrowed', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-					{ replacements: [requestId], transaction: t }
-				);
-			} catch (err) {
-				err.statement = 'UPDATE_BORROW_REQUESTS_STATUS';
-				err.replacements = [requestId];
-				throw err;
-			}
+			console.log('[borrowController.ghiNhanDaMuon] marked as borrowed', {
+				requestId,
+			});
 		});
 
 		return ok(res, { id: requestId }, 'Đã ghi nhận mượn thiết bị');
