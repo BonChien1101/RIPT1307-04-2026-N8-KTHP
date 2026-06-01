@@ -380,6 +380,12 @@ const ghiNhanDaMuon = async (req, res) => {
 					 WHERE id = ? AND available_quantity >= ?`,
 					{ replacements: [requestedQty, equipmentId, requestedQty], transaction: t }
 				);
+				console.log('[borrowController.ghiNhanDaMuon] raw UPDATE return', {
+					requestId,
+					equipment_id: equipmentId,
+					r: toPlainObject(r),
+					rMeta: toPlainObject(rMeta),
+				});
 				const affected = getAffectedRows(r, rMeta);
 				console.log('[borrowController.ghiNhanDaMuon] decrease result', {
 					requestId,
