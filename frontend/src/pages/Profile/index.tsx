@@ -91,10 +91,12 @@ const Profile: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         if (data.code === 'OK' || data.data) {
           const userInfo = data.data || data;
           setUserInfo(userInfo);
-          form.setFieldsValue({
-            full_name: userInfo.full_name || '',
-            student_code: userInfo.student_code || '',
-          });
+          setTimeout(() => {
+            form.setFieldsValue({
+              full_name: userInfo.full_name || '',
+              email: userInfo.email || '',
+            });
+          }, 0);
         }
 
         // Load contact info from localStorage
@@ -113,10 +115,12 @@ const Profile: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           const user = JSON.parse(localStorage.getItem('user') || '{}');
           if (user.full_name) {
             setUserInfo(user);
-            form.setFieldsValue({
-              full_name: user.full_name || '',
-              student_code: user.student_code || '',
-            });
+            setTimeout(() => {
+              form.setFieldsValue({
+                full_name: user.full_name || '',
+                email: user.email || '',
+              });
+            }, 0);
           } else {
             message.error('Không thể tải thông tin cá nhân!');
           }
@@ -144,7 +148,7 @@ const Profile: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         },
         body: JSON.stringify({
           full_name: values.full_name,
-          student_code: values.student_code,
+          email: values.email,
         }),
       });
 
@@ -159,10 +163,21 @@ const Profile: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         // Update localStorage
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         user.full_name = data.data.full_name;
+        user.email = data.data.email;
         localStorage.setItem('user', JSON.stringify(user));
 
-        message.success('Cập nhật thông tin cá nhân thành công!');
-        setIsEditing(false);
+        // If email changed, inform user about login account change
+        if (data.data.email !== userInfo?.email) {
+          message.warning(`Email tài khoản đã thay đổi thành: ${data.data.email}. Vui lòng đăng nhập lại với email mới!`);
+          setTimeout(() => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+          }, 2000);
+        } else {
+          message.success('Cập nhật thông tin cá nhân thành công!');
+          setIsEditing(false);
+        }
       }
     } catch (error: any) {
       message.error(error.message || 'Lỗi cập nhật thông tin!');
@@ -314,11 +329,16 @@ const Profile: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
               </Col>
               <Col xs={24} sm={12}>
                 <Form.Item
-                  label="Mã Sinh Viên"
-                  name="student_code"
+                  label="Email"
+                  name="email"
+                  rules={[
+                    { required: true, message: 'Vui lòng nhập email!' },
+                    { type: 'email', message: 'Email không hợp lệ!' },
+                  ]}
                 >
                   <Input
-                    placeholder="Nhập mã sinh viên (nếu có)"
+                    placeholder="Nhập email"
+                    prefix={<MailOutlined />}
                     allowClear
                   />
                 </Form.Item>
@@ -341,10 +361,12 @@ const Profile: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
                     setIsEditing(false);
                     form.resetFields();
                     if (userInfo) {
-                      form.setFieldsValue({
-                        full_name: userInfo.full_name,
-                        student_code: userInfo.student_code || '',
-                      });
+                      setTimeout(() => {
+                        form.setFieldsValue({
+                          full_name: userInfo.full_name,
+                          email: userInfo.email || '',
+                        });
+                      }, 0);
                     }
                   }}
                 >

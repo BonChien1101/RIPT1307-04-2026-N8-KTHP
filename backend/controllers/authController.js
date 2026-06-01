@@ -239,24 +239,27 @@ const capNhatProfile = async (req, res) => {
 		const nguoiDungId = req.user?.id;
 		if (!nguoiDungId) return fail(res, 'Bạn cần đăng nhập', 'AUTH_REQUIRED', 401);
 
-		const { full_name: hoTenRaw, student_code: maSVRaw } = req.body || {};
+		const { full_name: hoTenRaw, email: emailRaw } = req.body || {};
 		const hoTen = String(hoTenRaw || '').trim();
-		const maSV = String(maSVRaw || '').trim();
+		const email = String(emailRaw || '').trim();
 
 		const loi = [];
 		if (hoTen && hoTen.length < 2) {
 			loi.push({ field: 'full_name', message: 'Họ tên phải có ít nhất 2 ký tự' });
 		}
+		if (email && !email.includes('@')) {
+			loi.push({ field: 'email', message: 'Email không hợp lệ' });
+		}
 		if (loi.length) return fail(res, 'Dữ liệu không hợp lệ', 'VALIDATION_ERROR', 400, loi);
 
-		// Check trùng mã SV nếu có thay đổi
-		if (maSV) {
+		// Check trùng email nếu có thay đổi
+		if (email) {
 			const [existing] = await sequelize.query(
-				'SELECT id FROM users WHERE student_code = ? AND id != ? LIMIT 1',
-				{ replacements: [maSV, nguoiDungId] }
+				'SELECT id FROM users WHERE email = ? AND id != ? LIMIT 1',
+				{ replacements: [email, nguoiDungId] }
 			);
 			if (existing?.length) {
-				return fail(res, 'Mã sinh viên đã được sử dụng', 'CONFLICT', 409);
+				return fail(res, 'Email đã được sử dụng', 'CONFLICT', 409);
 			}
 		}
 
@@ -267,9 +270,9 @@ const capNhatProfile = async (req, res) => {
 			updateFields.push('full_name = ?');
 			updateValues.push(hoTen);
 		}
-		if (maSV !== undefined) {
-			updateFields.push('student_code = ?');
-			updateValues.push(maSV || null);
+		if (email) {
+			updateFields.push('email = ?');
+			updateValues.push(email);
 		}
 
 		if (!updateFields.length) {
