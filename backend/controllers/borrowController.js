@@ -392,6 +392,7 @@ const ghiNhanDaMuon = async (req, res) => {
 				if (!affected && availableQty >= requestedQty && (Array.isArray(r) ? r.length === 0 : r == null) && (rMeta == null || (typeof rMeta === 'object' && Object.keys(rMeta).length === 0))) {
 					affected = 1;
 				}
+
 				console.log('[borrowController.ghiNhanDaMuon] decrease result', {
 					requestId,
 					equipment_id: equipmentId,
