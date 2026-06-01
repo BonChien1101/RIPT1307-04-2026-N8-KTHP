@@ -23,6 +23,7 @@ const penaltyRoutes = require('./routes/penaltyRoutes');
 const ticketRoutes = require('./routes/ticketRoutes');
 const signatureRoutes = require('./routes/signatureRoutes');
 const exportRoutes = require('./routes/exportRoutes');
+const adminEmailRoutes = require('./routes/adminEmailRoutes');
 
 const app = express();
 
@@ -82,6 +83,7 @@ app.use('/api/penalties', penaltyRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/signatures', signatureRoutes);
 app.use('/api/export', exportRoutes);
+app.use('/api/admin', adminEmailRoutes);
 
 app.use((req, res) => {
 	return fail(res, 'Không tìm thấy API', 'NOT_FOUND', 404);

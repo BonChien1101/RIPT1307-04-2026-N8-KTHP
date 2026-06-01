@@ -239,8 +239,21 @@ const Student: React.FC = () => {
         message.success('Đã đặt trước! Bạn sẽ được thông báo khi thiết bị trả lại.');
         fetchMyQueue();
       } else {
-        const data = await res.json();
-        message.warning(data?.message || 'Không thể đặt trước!');
+        let detail = '';
+        try {
+          const data = await res.json();
+          // eslint-disable-next-line no-console
+          console.error('[Student.handleJoinQueue] API error', res.status, data);
+          detail = data?.message || data?.error || data?.code || '';
+        } catch {
+          try {
+            const text = await res.text();
+            // eslint-disable-next-line no-console
+            console.error('[Student.handleJoinQueue] API error', res.status, text);
+            detail = text;
+          } catch {}
+        }
+        message.warning(detail ? `Không thể đặt trước: ${detail}` : `Không thể đặt trước (${res.status})`);
       }
     } catch { message.error('Lỗi kết nối!'); }
   };

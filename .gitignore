@@ -29,6 +29,10 @@ Thumbs.db
 # Coverage
 coverage/
 
+# Umi / build caches
+frontend/src/.umi/
+frontend/src/.umi-production/
+
 # Misc
 *.tmp
 *.swp
