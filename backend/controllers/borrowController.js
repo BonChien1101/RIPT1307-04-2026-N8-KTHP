@@ -354,21 +354,43 @@ const ghiNhanDaMuon = async (req, res) => {
 			if (!items.length) throw new Error('REQUEST_NOT_FOUND');
 
 			for (const it of items) {
+				const equipmentId = Number(it.equipment_id);
+				const requestedQty = Number(it.quantity);
+				if (!equipmentId || !Number.isFinite(requestedQty) || requestedQty <= 0) throw new Error('INVALID_ITEM');
 
-				let r;
-				try {
-					[r] = await sequelize.query(
-						`UPDATE equipments
-						 SET available_quantity = available_quantity - ?
-						 WHERE id = ? AND available_quantity >= ?`,
-						{ replacements: [it.quantity, it.equipment_id, it.quantity], transaction: t }
-					);
-				} catch (err) {
-					err.statement = 'UPDATE_EQUIPMENTS_DECREASE';
-					err.replacements = [it.quantity, it.equipment_id, it.quantity];
-					throw err;
-				}
-				if (!r.affectedRows) throw new Error('OUT_OF_STOCK');
+				const [equipmentRows] = await sequelize.query(
+					`SELECT available_quantity
+					 FROM equipments
+					 WHERE id = ?`,
+					{ replacements: [equipmentId], transaction: t }
+				);
+				const availableQty = equipmentRows?.[0]?.available_quantity;
+				console.log('[borrowController.ghiNhanDaMuon] check stock', {
+					requestId,
+					equipment_id: equipmentId,
+					requested_quantity: requestedQty,
+					available_quantity: availableQty,
+				});
+
+				if (availableQty == null) throw new Error('OUT_OF_STOCK');
+
+				const [r, rMeta] = await sequelize.query(
+					`UPDATE equipments
+					 SET available_quantity = available_quantity - ?
+					 WHERE id = ? AND available_quantity >= ?`,
+					{ replacements: [requestedQty, equipmentId, requestedQty], transaction: t }
+				);
+				const affected = getAffectedRows(r, rMeta);
+				console.log('[borrowController.ghiNhanDaMuon] decrease result', {
+					requestId,
+					equipment_id: equipmentId,
+					requested_quantity: requestedQty,
+					affected_rows: affected,
+					r: toPlainObject(r),
+					rMeta: toPlainObject(rMeta),
+				});
+
+				if (!affected) throw new Error('OUT_OF_STOCK');
 			}
 
 			try {
