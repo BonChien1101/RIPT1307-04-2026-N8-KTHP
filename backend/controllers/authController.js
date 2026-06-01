@@ -234,5 +234,71 @@ const resetMatKhau = async (req, res) => {
 	}
 };
 
-module.exports = { dangNhap, thongTinToi, dangKy, resetMatKhau };
+const capNhatProfile = async (req, res) => {
+	try {
+		const nguoiDungId = req.user?.id;
+		if (!nguoiDungId) return fail(res, 'Bạn cần đăng nhập', 'AUTH_REQUIRED', 401);
+
+		const { full_name: hoTenRaw, student_code: maSVRaw } = req.body || {};
+		const hoTen = String(hoTenRaw || '').trim();
+		const maSV = String(maSVRaw || '').trim();
+
+		const loi = [];
+		if (hoTen && hoTen.length < 2) {
+			loi.push({ field: 'full_name', message: 'Họ tên phải có ít nhất 2 ký tự' });
+		}
+		if (loi.length) return fail(res, 'Dữ liệu không hợp lệ', 'VALIDATION_ERROR', 400, loi);
+
+		// Check trùng mã SV nếu có thay đổi
+		if (maSV) {
+			const [existing] = await sequelize.query(
+				'SELECT id FROM users WHERE student_code = ? AND id != ? LIMIT 1',
+				{ replacements: [maSV, nguoiDungId] }
+			);
+			if (existing?.length) {
+				return fail(res, 'Mã sinh viên đã được sử dụng', 'CONFLICT', 409);
+			}
+		}
+
+		const updateValues = [];
+		const updateFields = [];
+
+		if (hoTen) {
+			updateFields.push('full_name = ?');
+			updateValues.push(hoTen);
+		}
+		if (maSV !== undefined) {
+			updateFields.push('student_code = ?');
+			updateValues.push(maSV || null);
+		}
+
+		if (!updateFields.length) {
+			return fail(res, 'Không có dữ liệu để cập nhật', 'VALIDATION_ERROR', 400);
+		}
+
+		updateFields.push('updated_at = CURRENT_TIMESTAMP');
+		updateValues.push(nguoiDungId);
+
+		await sequelize.query(
+			`UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`,
+			{ replacements: updateValues }
+		);
+
+		const [rows] = await sequelize.query(
+			'SELECT id, full_name, email, role, student_code, created_at, updated_at FROM users WHERE id = ? LIMIT 1',
+			{ replacements: [nguoiDungId] }
+		);
+		const nguoiDung = rows?.[0];
+
+		return ok(res, nguoiDung, 'Cập nhật thông tin cá nhân thành công');
+	} catch (e) {
+		console.error('capNhatProfile error:', e);
+		if (isDbConnectionError(e)) {
+			return fail(res, 'Không kết nối được CSDL cục bộ', 'DB_CONNECTION_ERROR', 503);
+		}
+		return fail(res, 'Lỗi cập nhật thông tin', 'INTERNAL_ERROR', 500);
+	}
+};
+
+module.exports = { dangNhap, thongTinToi, dangKy, resetMatKhau, capNhatProfile };
 
