@@ -48,6 +48,7 @@ import { getApiUrl } from '../../utils/api';
 
 import NotificationBell from '../../components/NotificationBell';
 import TrustBadge from '../../components/TrustBadge';
+import Profile from '../Profile';
 import QRModal from '../../components/QRModal';
 import SignaturePad from '../../components/SignaturePad';
 import ChatBot from '../../components/ChatBot';
@@ -496,6 +497,7 @@ const Student: React.FC = () => {
   const siderItems = [
     { key: 'equipment', icon: <HomeOutlined />, label: 'Danh Sách Thiết Bị' },
     { key: 'history', icon: <ClockCircleOutlined />, label: 'Lịch Sử Mượn' },
+    { key: 'profile', icon: <UserOutlined />, label: 'Thông Tin Cá Nhân' },
     { key: 'trust', icon: <TrophyOutlined />, label: 'Điểm Uy Tín' },
     { key: 'report', icon: <BugOutlined />, label: 'Báo Lỗi Thiết Bị' },
   ];
@@ -680,6 +682,11 @@ const Student: React.FC = () => {
                   pagination={{ pageSize: 10 }}
                 />
               </Card>
+            )}
+
+            {/* PROFILE TAB */}
+            {activeTab === 'profile' && (
+              <Profile onBack={() => setActiveTab('equipment')} />
             )}
 
             {/* TRUST TAB */}

@@ -2,9 +2,9 @@
 import { plugin } from './plugin';
 import * as Plugin_0 from '../../app.tsx';
 import * as Plugin_1 from '@@/plugin-antd-icon-config/app.ts';
-import * as Plugin_2 from 'D:/BTLCK_NHOM8/frontend/src/.umi/plugin-access/rootContainer.ts';
+import * as Plugin_2 from 'D:/FINAL WEB/frontend/src/.umi/plugin-access/rootContainer.ts';
 import * as Plugin_3 from '../plugin-initial-state/runtime';
-import * as Plugin_4 from 'D:/BTLCK_NHOM8/frontend/src/.umi/plugin-locale/runtime.tsx';
+import * as Plugin_4 from 'D:/FINAL WEB/frontend/src/.umi/plugin-locale/runtime.tsx';
 import * as Plugin_5 from '@@/plugin-layout/runtime.tsx';
 import * as Plugin_6 from '../plugin-model/runtime';
 
@@ -18,7 +18,7 @@ import * as Plugin_6 from '../plugin-model/runtime';
   });
   plugin.register({
     apply: Plugin_2,
-    path: 'D:/BTLCK_NHOM8/frontend/src/.umi/plugin-access/rootContainer.ts',
+    path: 'D:/FINAL WEB/frontend/src/.umi/plugin-access/rootContainer.ts',
   });
   plugin.register({
     apply: Plugin_3,
@@ -26,7 +26,7 @@ import * as Plugin_6 from '../plugin-model/runtime';
   });
   plugin.register({
     apply: Plugin_4,
-    path: 'D:/BTLCK_NHOM8/frontend/src/.umi/plugin-locale/runtime.tsx',
+    path: 'D:/FINAL WEB/frontend/src/.umi/plugin-locale/runtime.tsx',
   });
   plugin.register({
     apply: Plugin_5,
