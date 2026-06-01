@@ -1,4 +1,5 @@
 const sequelize = require('../config/database');
+const { QueryTypes } = require('sequelize');
 const { ok, fail } = require('../utils/response');
 const { getInsertedId, getAffectedRows } = require('../utils/sqlCompat');
 
@@ -88,11 +89,18 @@ const updateLog = async (req, res) => {
 
     const [r, rMeta] = await sequelize.query(
       `UPDATE repair_logs SET ${sets.join(', ')} WHERE id = ?`,
-      { replacements: params }
+      { replacements: params, type: QueryTypes.UPDATE }
     );
 
-    if (!getAffectedRows(r, rMeta)) {
-      return fail(res, 'Không tìm thấy nhật ký bảo trì', 'NOT_FOUND', 404);
+    const affected = getAffectedRows(r, rMeta);
+    if (!affected) {
+      // Could be: (1) id not found, or (2) row exists but values are identical (some dialects return 0)
+      const [exists] = await sequelize.query('SELECT id FROM repair_logs WHERE id = ? LIMIT 1', {
+        replacements: [logId],
+      });
+      if (!exists || exists.length === 0) {
+        return fail(res, 'Không tìm thấy nhật ký bảo trì', 'NOT_FOUND', 404);
+      }
     }
 
     return ok(res, { id: logId }, 'Đã cập nhật nhật ký bảo trì');
@@ -105,41 +113,22 @@ const getAlerts = async (req, res) => {
   try {
     // Equipment where last_maintenance_at is NULL or older than 180 days
     const dialect = sequelize.getDialect();
-    let dateSql;
-    if (dialect === 'mysql') {
-      dateSql = `(last_maintenance_at IS NULL OR last_maintenance_at < DATE_SUB(NOW(), INTERVAL 180 DAY))`;
-    } else {
-      dateSql = `(last_maintenance_at IS NULL OR last_maintenance_at < datetime('now', '-180 days'))`;
-    }
+    const dateSql =
+      dialect === 'mysql'
+        ? `(last_maintenance_at IS NULL OR last_maintenance_at < (CURRENT_TIMESTAMP - INTERVAL 180 DAY))`
+        : `(last_maintenance_at IS NULL OR last_maintenance_at < datetime('now', '-180 days'))`;
 
+    // Portable ordering: put NULLs first without using NULLS FIRST (not supported by MySQL, older SQLite)
     const [rows] = await sequelize.query(
       `SELECT id, name, category, status, last_maintenance_at, condition_status
        FROM equipments
        WHERE ${dateSql}
-       ORDER BY last_maintenance_at ASC NULLS FIRST`
+       ORDER BY (last_maintenance_at IS NOT NULL) ASC, last_maintenance_at ASC`
     );
 
     return ok(res, rows, 'OK');
   } catch (e) {
-    // Try without NULLS FIRST if not supported
-    try {
-      const dialect = sequelize.getDialect();
-      let dateSql;
-      if (dialect === 'mysql') {
-        dateSql = `(last_maintenance_at IS NULL OR last_maintenance_at < DATE_SUB(NOW(), INTERVAL 180 DAY))`;
-      } else {
-        dateSql = `(last_maintenance_at IS NULL OR last_maintenance_at < datetime('now', '-180 days'))`;
-      }
-      const [rows] = await sequelize.query(
-        `SELECT id, name, category, status, last_maintenance_at, condition_status
-         FROM equipments
-         WHERE ${dateSql}
-         ORDER BY last_maintenance_at ASC`
-      );
-      return ok(res, rows, 'OK');
-    } catch (e2) {
-      return fail(res, 'Lỗi server khi lấy cảnh báo bảo trì', 'INTERNAL_ERROR', 500);
-    }
+    return fail(res, 'Lỗi server khi lấy cảnh báo bảo trì', 'INTERNAL_ERROR', 500);
   }
 };
 

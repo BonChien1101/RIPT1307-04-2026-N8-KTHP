@@ -497,6 +497,24 @@ const ghiNhanDaTra = async (req, res) => {
 			}
 		}
 
+		// Notify queue (email + socket) for each returned equipment
+		try {
+			const { notifyNextInQueue } = require('./queueController');
+			const { notifyNextInQueueByEmail } = require('../controllers/emailNotificationController');
+			const [items] = await sequelize.query(
+				`SELECT equipment_id FROM borrow_items WHERE request_id = ?`,
+				{ replacements: [requestId] }
+			);
+			for (const it of items || []) {
+				const eqId = Number(it.equipment_id);
+				if (!eqId) continue;
+				await notifyNextInQueue(eqId);
+				await notifyNextInQueueByEmail(eqId);
+			}
+		} catch (notifyErr) {
+			console.error('[borrowController.ghiNhanDaTra] notify queue error:', notifyErr?.message);
+		}
+
 		return ok(res, { id: requestId }, 'Đã ghi nhận trả thiết bị');
 	} catch (e) {
 		if (e?.message === 'INVALID_STATUS') return fail(res, 'Yêu cầu chưa ở trạng thái đang mượn', 'INVALID_STATUS', 409);

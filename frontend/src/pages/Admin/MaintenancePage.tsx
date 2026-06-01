@@ -106,7 +106,21 @@ const MaintenancePage: React.FC<MaintenancePageProps> = ({ apiUrl }) => {
         fetchLogs();
         fetchAlerts();
       } else {
-        message.error('Thao tác thất bại!');
+        let detail = '';
+        try {
+          const data = await res.json();
+          detail = data?.message || data?.error || data?.code || '';
+          console.error('[MaintenancePage.handleSubmit] API error', res.status, data);
+        } catch {
+          try {
+            const text = await res.text();
+            detail = text;
+            console.error('[MaintenancePage.handleSubmit] API error', res.status, text);
+          } catch {
+            // ignore
+          }
+        }
+        message.error(detail ? `Thao tác thất bại: ${detail}` : `Thao tác thất bại (${res.status})`);
       }
     } catch {}
   };
