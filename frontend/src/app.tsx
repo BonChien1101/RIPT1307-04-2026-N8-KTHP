@@ -1,6 +1,5 @@
 ﻿import React from 'react';
-import { history } from 'umi';
-import { Avatar, Button, Space, Tag, Typography } from 'antd';
+import { Avatar, Button, Space, Tag } from 'antd';
 import { CrownOutlined, BookOutlined, LoginOutlined, LogoutOutlined, UserOutlined } from '@ant-design/icons';
 import 'antd/dist/antd.css';
 import './styles/global.less';
@@ -37,6 +36,11 @@ const getActivePath = () => {
 };
 
 const normalizeMenuPath = (item: any) => item?.path || item?.key || '';
+
+const navigateTo = (path: string) => {
+  if (typeof window === 'undefined') return;
+  window.location.hash = `#${path}`;
+};
 
 const filterMenuByRole = (menuData: any[], role?: string) => {
   const targetPath = getTargetPath(role);
@@ -115,7 +119,7 @@ export function layout({ initialState }: any) {
             onClick={() => {
               localStorage.removeItem('token');
               localStorage.removeItem('user');
-              history.push('/');
+              navigateTo('/');
               window.location.reload();
             }}
           >
@@ -139,17 +143,17 @@ export function layout({ initialState }: any) {
       const pathname = getActivePath();
 
       if (!isAuthed) {
-        if (pathname !== '/') history.push('/');
+        if (pathname !== '/') navigateTo('/');
         return;
       }
 
       if (pathname === '/student' && roleMeta.path === '/admin') {
-        history.push('/admin');
+        navigateTo('/admin');
         return;
       }
 
       if (pathname === '/admin' && roleMeta.path === '/student') {
-        history.push('/student');
+        navigateTo('/student');
       }
     },
   };

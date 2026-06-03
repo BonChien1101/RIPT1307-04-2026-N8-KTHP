@@ -1,4 +1,5 @@
-
+CREATE DATABASE borrow_system;
+USE borrow_system;
 -- =========================================
 -- USERS
 -- =========================================
@@ -125,18 +126,77 @@ CREATE TABLE IF NOT EXISTS notifications (
 -- INDEXES 
 -- =========================================
 
-CREATE INDEX idx_borrow_user
-ON borrow_requests(user_id);
-CREATE INDEX idx_borrow_status
-ON borrow_requests(status);
-CREATE INDEX idx_equipment_status
-ON equipments(status);
-CREATE INDEX idx_notification_user
-ON notifications(user_id);
-CREATE INDEX idx_borrow_items_request
-ON borrow_items(request_id);
-CREATE INDEX idx_borrow_items_equipment
-ON borrow_items(equipment_id);
+SET @index_exists := (
+        SELECT COUNT(*)
+        FROM information_schema.statistics
+        WHERE table_schema = DATABASE()
+            AND table_name = 'borrow_requests'
+            AND index_name = 'idx_borrow_user'
+);
+SET @sql := IF(@index_exists = 0, 'CREATE INDEX idx_borrow_user ON borrow_requests(user_id)', 'SELECT 1');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @index_exists := (
+        SELECT COUNT(*)
+        FROM information_schema.statistics
+        WHERE table_schema = DATABASE()
+            AND table_name = 'borrow_requests'
+            AND index_name = 'idx_borrow_status'
+);
+SET @sql := IF(@index_exists = 0, 'CREATE INDEX idx_borrow_status ON borrow_requests(status)', 'SELECT 1');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @index_exists := (
+        SELECT COUNT(*)
+        FROM information_schema.statistics
+        WHERE table_schema = DATABASE()
+            AND table_name = 'equipments'
+            AND index_name = 'idx_equipment_status'
+);
+SET @sql := IF(@index_exists = 0, 'CREATE INDEX idx_equipment_status ON equipments(status)', 'SELECT 1');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @index_exists := (
+        SELECT COUNT(*)
+        FROM information_schema.statistics
+        WHERE table_schema = DATABASE()
+            AND table_name = 'notifications'
+            AND index_name = 'idx_notification_user'
+);
+SET @sql := IF(@index_exists = 0, 'CREATE INDEX idx_notification_user ON notifications(user_id)', 'SELECT 1');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @index_exists := (
+        SELECT COUNT(*)
+        FROM information_schema.statistics
+        WHERE table_schema = DATABASE()
+            AND table_name = 'borrow_items'
+            AND index_name = 'idx_borrow_items_request'
+);
+SET @sql := IF(@index_exists = 0, 'CREATE INDEX idx_borrow_items_request ON borrow_items(request_id)', 'SELECT 1');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @index_exists := (
+        SELECT COUNT(*)
+        FROM information_schema.statistics
+        WHERE table_schema = DATABASE()
+            AND table_name = 'borrow_items'
+            AND index_name = 'idx_borrow_items_equipment'
+);
+SET @sql := IF(@index_exists = 0, 'CREATE INDEX idx_borrow_items_equipment ON borrow_items(equipment_id)', 'SELECT 1');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- =========================================
 -- CATEGORIES
@@ -215,9 +275,9 @@ CREATE TABLE IF NOT EXISTS equipment_qr_codes (
 CREATE TABLE IF NOT EXISTS returns (
     id INT NOT NULL AUTO_INCREMENT,
     borrow_item_id INT NOT NULL,
-    returned_by INT NOT NULL,
+    returned_by INT NULL,
     returned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    condition ENUM('good','damaged','lost') DEFAULT 'good',
+    `condition` ENUM('good','damaged','lost') DEFAULT 'good',
     damage_fee DECIMAL(10,2) DEFAULT 0.00,
     processed_by INT NULL,
     notes TEXT NULL,
@@ -256,6 +316,103 @@ CREATE TABLE IF NOT EXISTS activity_logs (
     PRIMARY KEY (id),
     CONSTRAINT fk_activity_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
+
+-- =========================================
+-- SAMPLE DATA: ACCOUNTS, PRODUCTS, IMAGES
+-- =========================================
+
+INSERT IGNORE INTO users (full_name, student_code, email, password, role) VALUES
+('Admin Tổng', NULL, 'admin@borrowx.vn', '123456', 'admin'),
+('Nguyễn Văn An', 'B21DCXX001', 'student1@borrowx.vn', '123456', 'student'),
+('Trần Thị Bình', 'B21DCXX002', 'student2@borrowx.vn', '123456', 'student'),
+('Lê Văn Cường', 'B21DCXX003', 'student3@borrowx.vn', '123456', 'student'),
+('Phạm Thị Dung', 'B21DCXX004', 'student4@borrowx.vn', '123456', 'student'),
+('Hoàng Minh Em', 'B21DCXX005', 'student5@borrowx.vn', '123456', 'student');
+
+INSERT INTO equipments (name, category, description, total_quantity, available_quantity, image_url, status)
+SELECT 'Máy ảnh Canon EOS 90D', 'Máy ảnh', 'Máy ảnh DSLR 32.5MP dùng cho chụp ảnh và quay video.', 2, 2,
+             'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1200&q=80', 'available'
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM equipments WHERE name = 'Máy ảnh Canon EOS 90D');
+
+INSERT INTO equipments (name, category, description, total_quantity, available_quantity, image_url, status)
+SELECT 'Máy quay Sony ZV-E10', 'Máy quay', 'Máy quay nhỏ gọn cho livestream và quay vlog.', 3, 3,
+             'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1200&q=80', 'available'
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM equipments WHERE name = 'Máy quay Sony ZV-E10');
+
+INSERT INTO equipments (name, category, description, total_quantity, available_quantity, image_url, status)
+SELECT 'Tripod Manfrotto Compact', 'Phụ kiện', 'Chân máy chắc chắn cho máy ảnh và máy quay.', 5, 5,
+             'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1200&q=80', 'available'
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM equipments WHERE name = 'Tripod Manfrotto Compact');
+
+INSERT INTO equipments (name, category, description, total_quantity, available_quantity, image_url, status)
+SELECT 'Micro không dây Rode Wireless GO II', 'Âm thanh', 'Bộ micro không dây gọn nhẹ cho ghi âm và phỏng vấn.', 4, 4,
+             'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&w=1200&q=80', 'available'
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM equipments WHERE name = 'Micro không dây Rode Wireless GO II');
+
+INSERT INTO equipments (name, category, description, total_quantity, available_quantity, image_url, status)
+SELECT 'Máy chiếu Epson EB-X06', 'Trình chiếu', 'Máy chiếu sáng mạnh cho hội thảo, lớp học và sự kiện.', 2, 2,
+             'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80', 'available'
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM equipments WHERE name = 'Máy chiếu Epson EB-X06');
+
+INSERT INTO equipment_images (equipment_id, url, is_primary)
+SELECT e.id, 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1200&q=80', TRUE
+FROM equipments e
+WHERE e.name = 'Máy ảnh Canon EOS 90D'
+    AND NOT EXISTS (
+            SELECT 1
+            FROM equipment_images
+            WHERE equipment_id = e.id
+                AND url = 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1200&q=80'
+    );
+
+INSERT INTO equipment_images (equipment_id, url, is_primary)
+SELECT e.id, 'https://images.unsplash.com/photo-1512790182412-b19e6d62bc39?auto=format&fit=crop&w=1200&q=80', TRUE
+FROM equipments e
+WHERE e.name = 'Máy quay Sony ZV-E10'
+    AND NOT EXISTS (
+            SELECT 1
+            FROM equipment_images
+            WHERE equipment_id = e.id
+                AND url = 'https://images.unsplash.com/photo-1512790182412-b19e6d62bc39?auto=format&fit=crop&w=1200&q=80'
+    );
+
+INSERT INTO equipment_images (equipment_id, url, is_primary)
+SELECT e.id, 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1200&q=80', TRUE
+FROM equipments e
+WHERE e.name = 'Tripod Manfrotto Compact'
+    AND NOT EXISTS (
+            SELECT 1
+            FROM equipment_images
+            WHERE equipment_id = e.id
+                AND url = 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1200&q=80'
+    );
+
+INSERT INTO equipment_images (equipment_id, url, is_primary)
+SELECT e.id, 'https://images.unsplash.com/photo-1581591524425-c7e0978865b6?auto=format&fit=crop&w=1200&q=80', TRUE
+FROM equipments e
+WHERE e.name = 'Micro không dây Rode Wireless GO II'
+    AND NOT EXISTS (
+            SELECT 1
+            FROM equipment_images
+            WHERE equipment_id = e.id
+                AND url = 'https://images.unsplash.com/photo-1581591524425-c7e0978865b6?auto=format&fit=crop&w=1200&q=80'
+    );
+
+INSERT INTO equipment_images (equipment_id, url, is_primary)
+SELECT e.id, 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80', TRUE
+FROM equipments e
+WHERE e.name = 'Máy chiếu Epson EB-X06'
+    AND NOT EXISTS (
+            SELECT 1
+            FROM equipment_images
+            WHERE equipment_id = e.id
+                AND url = 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80'
+    );
 
 -- =========================================
 -- SAMPLE SEEDS: ROLES & BASIC PERMISSIONS

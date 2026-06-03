@@ -40,10 +40,11 @@ import {
   BulbOutlined,
   PlusCircleOutlined,
   SendOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import './styles.less';
 import { isAdminRole } from '../../utils/auth';
-import { getApiUrl } from '../../utils/api';
+import { getApiUrl, resolveApiHost } from '../../utils/api';
 
 
 import NotificationBell from '../../components/NotificationBell';
@@ -85,6 +86,66 @@ interface AiSuggestion {
   equipment: string[];
 }
 
+interface ComboItem {
+  combo_id: number;
+  equipment_id: number;
+  quantity: number;
+  equipment_name?: string;
+}
+
+interface Combo {
+  id: number;
+  name: string;
+  description?: string;
+  image_url?: string;
+  items?: ComboItem[];
+  available?: boolean;
+}
+
+const FALLBACK_EQUIPMENT_IMAGES = [
+  {
+    keywords: ['camera', 'media', 'may anh', 'may quay', 'canon', 'sony'],
+    url: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    keywords: ['audio', 'micro', 'loa', 'am thanh', 'mixer'],
+    url: 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    keywords: ['presentation', 'projector', 'may chieu', 'trinh chieu'],
+    url: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    keywords: ['computer', 'laptop', 'may tinh'],
+    url: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=1200&q=80',
+  },
+  {
+    keywords: ['tripod', 'gimbal', 'phu kien', 'chan may'],
+    url: 'https://images.unsplash.com/photo-1519638831568-d9897f54ed69?auto=format&fit=crop&w=1200&q=80',
+  },
+];
+
+const normalizeImageText = (value?: string) =>
+  String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+const getFallbackEquipmentImage = (item?: Partial<Equipment>) => {
+  const haystack = normalizeImageText([item?.name, item?.category, item?.description].filter(Boolean).join(' '));
+  const match = FALLBACK_EQUIPMENT_IMAGES.find((entry) => entry.keywords.some((keyword) => haystack.includes(keyword)));
+  return (match || FALLBACK_EQUIPMENT_IMAGES[0]).url;
+};
+
+const resolveEquipmentImageUrl = (item: Partial<Equipment>) => {
+  const raw = String(item.image_url || '').trim();
+  if (!raw) return getFallbackEquipmentImage(item);
+  if (/^(https?:)?\/\//i.test(raw) || /^data:/i.test(raw) || /^blob:/i.test(raw)) return raw;
+  const origin = resolveApiHost();
+  if (raw.startsWith('/')) return `${origin}${raw}`;
+  return `${origin}/${raw.replace(/^\/+/, '')}`;
+};
+
 // Dark mode helpers
 const getDarkMode = () => { try { return localStorage.getItem('borrowx_dark') === '1'; } catch { return false; } };
 const applyDarkMode = (val: boolean) => {
@@ -119,6 +180,10 @@ const Student: React.FC = () => {
   const [aiLoading, setAiLoading] = useState(false);
   const [myQueue, setMyQueue] = useState<any[]>([]);
   const [signature, setSignature] = useState<string>('');
+  const [combos, setCombos] = useState<Combo[]>([]);
+  const [selectedCombo, setSelectedCombo] = useState<Combo | null>(null);
+  const [isComboModalVisible, setIsComboModalVisible] = useState(false);
+  const [comboBorrowForm] = Form.useForm();
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
 
   const apiUrl = getApiUrl();
@@ -162,6 +227,7 @@ const Student: React.FC = () => {
     fetchTrustInfo();
     fetchAiSuggestions();
     fetchMyQueue();
+    fetchCombos();
   }, []);
 
   // Filter equipment on search
@@ -181,7 +247,14 @@ const Student: React.FC = () => {
       const token = localStorage.getItem('token');
       const response = await fetch(`${apiUrl}/equipments`, { headers: { Authorization: `Bearer ${token}` } });
       if (response.status === 401) { handleUnauthorized(); return; }
-      if (response.ok) { const payload = await response.json(); setEquipment(payload?.data || []); }
+      if (response.ok) {
+        const payload = await response.json();
+        const normalizedEquipment = (payload?.data || []).map((item: Equipment) => ({
+          ...item,
+          image_url: resolveEquipmentImageUrl(item),
+        }));
+        setEquipment(normalizedEquipment);
+      }
     } catch { message.error('Lỗi tải danh sách thiết bị!'); }
   };
 
@@ -217,6 +290,14 @@ const Student: React.FC = () => {
       const token = localStorage.getItem('token');
       const res = await fetch(`${apiUrl}/queue/me`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) { const data = await res.json(); setMyQueue(data?.data || []); }
+    } catch {}
+  };
+
+  const fetchCombos = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${apiUrl}/combos`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) { const data = await res.json(); setCombos(data?.data || []); }
     } catch {}
   };
 
@@ -287,6 +368,44 @@ const Student: React.FC = () => {
       }
     } catch { message.error('Lỗi kết nối!'); }
     finally { setLoading(false); }
+  };
+
+  const handleBorrowComboClick = (combo: Combo) => {
+    setSelectedCombo(combo);
+    comboBorrowForm.resetFields();
+    setIsComboModalVisible(true);
+  };
+
+  const handleBorrowComboSubmit = async (values: any) => {
+    if (!selectedCombo) return;
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${apiUrl}/combos/${selectedCombo.id}/borrow`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          borrow_date: values.borrowDate,
+          expected_return_date: values.returnDate,
+          note: values.note,
+        }),
+      });
+      if (response.status === 401) { handleUnauthorized(); return; }
+      if (response.ok) {
+        message.success('Đã tạo yêu cầu mượn combo!');
+        setIsComboModalVisible(false);
+        comboBorrowForm.resetFields();
+        fetchBorrowHistory();
+        setActiveTab('history');
+      } else {
+        const data = await response.json().catch(() => null);
+        message.warning(data?.message || 'Không thể mượn combo!');
+      }
+    } catch {
+      message.error('Lỗi kết nối server!');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleReviewSubmit = async (values: any) => {
@@ -381,7 +500,15 @@ const Student: React.FC = () => {
           onClick={() => { setSelected3DEquipment(item); setIs3DModalVisible(true); }}
         >
           {item.image_url ? (
-            <img src={item.image_url} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img
+              src={resolveEquipmentImageUrl(item)}
+              alt={item.name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={(event) => {
+                const fallbackUrl = getFallbackEquipmentImage(item);
+                if (event.currentTarget.src !== fallbackUrl) event.currentTarget.src = fallbackUrl;
+              }}
+            />
           ) : (
             <span style={{ fontSize: 48 }}>📦</span>
           )}
@@ -455,6 +582,7 @@ const Student: React.FC = () => {
   // ============ BORROW HISTORY COLUMNS ============
   const borrowHistoryColumns = [
     { title: 'Mã', dataIndex: 'id', key: 'id', width: 60, render: (id: number) => `#${id}` },
+    { title: 'Thiết Bị', dataIndex: 'equipment_names', key: 'equipment_names', ellipsis: true, render: (v: string) => v ? <Tooltip title={v}><span>{v}</span></Tooltip> : <span style={{color:'var(--muted)'}}>—</span> },
     { title: 'Ngày Mượn', dataIndex: 'borrow_date', key: 'borrow_date' },
     { title: 'Ngày Trả Dự Kiến', dataIndex: 'expected_return_date', key: 'expected_return_date' },
     { title: 'Ngày Trả Thực Tế', dataIndex: 'actual_return_date', key: 'actual_return_date', render: (v: string) => v || '—' },
@@ -482,6 +610,7 @@ const Student: React.FC = () => {
   // ============ SIDEBAR ============
   const siderItems = [
     { key: 'equipment', icon: <HomeOutlined />, label: 'Danh Sách Thiết Bị' },
+    { key: 'combos', icon: <ThunderboltOutlined />, label: 'Combo Thiết Bị' },
     { key: 'history', icon: <ClockCircleOutlined />, label: 'Lịch Sử Mượn' },
     { key: 'trust', icon: <TrophyOutlined />, label: 'Điểm Uy Tín' },
     { key: 'report', icon: <BugOutlined />, label: 'Báo Lỗi Thiết Bị' },
@@ -657,6 +786,45 @@ const Student: React.FC = () => {
               </div>
             )}
 
+            {/* COMBOS TAB */}
+            {activeTab === 'combos' && (
+              <div>
+                <Card title="⚡ Combo Thiết Bị" className="content-card" style={{ marginBottom: 16 }}>
+                  <Row gutter={[16, 16]}>
+                    {combos.map((combo) => (
+                      <Col xs={24} md={12} lg={8} key={combo.id}>
+                        <Card
+                          hoverable
+                          style={{ height: '100%', borderRadius: 16 }}
+                          bodyStyle={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+                        >
+                          <div style={{ fontWeight: 700, fontSize: 16 }}>{combo.name}</div>
+                          <div style={{ fontSize: 12, color: 'var(--muted)' }}>{combo.description || 'Combo thiết bị'}</div>
+                          <div>
+                            {(combo.items || []).map((item) => (
+                              <div key={`${combo.id}-${item.equipment_id}`} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
+                                <span>{item.equipment_name || `Thiết bị #${item.equipment_id}`}</span>
+                                <Tag>x{item.quantity}</Tag>
+                              </div>
+                            ))}
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
+                            <Tag color={combo.available ? 'green' : 'orange'}>{combo.available ? 'Sẵn sàng' : 'Thiếu hàng'}</Tag>
+                            <Button type="primary" onClick={() => handleBorrowComboClick(combo)} disabled={!combo.available}>Mượn Combo</Button>
+                          </div>
+                        </Card>
+                      </Col>
+                    ))}
+                    {combos.length === 0 && (
+                      <Col span={24}>
+                        <div style={{ textAlign: 'center', padding: 40, color: 'var(--muted)' }}>Chưa có combo nào.</div>
+                      </Col>
+                    )}
+                  </Row>
+                </Card>
+              </div>
+            )}
+
             {/* HISTORY TAB */}
             {activeTab === 'history' && (
               <Card title="📋 Lịch Sử Yêu Cầu Mượn" className="content-card">
@@ -805,6 +973,37 @@ const Student: React.FC = () => {
           <Form.Item>
             <Button type="primary" htmlType="submit" block loading={loading} size="large" icon={<SendOutlined />}>
               Gửi Yêu Cầu Mượn
+            </Button>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* ===== COMBO BORROW MODAL ===== */}
+      <Modal
+        title={<span><ThunderboltOutlined /> Mượn Combo Thiết Bị</span>}
+        visible={isComboModalVisible}
+        onCancel={() => setIsComboModalVisible(false)}
+        footer={null}
+        destroyOnClose
+      >
+        <Form form={comboBorrowForm} layout="vertical" onFinish={handleBorrowComboSubmit}>
+          <Form.Item label="Combo">
+            <div style={{ padding: '10px 14px', background: 'var(--muted-light)', borderRadius: 10 }}>
+              <strong>{selectedCombo?.name}</strong>
+            </div>
+          </Form.Item>
+          <Form.Item label="Ngày Mượn" name="borrowDate" rules={[{ required: true, message: 'Chọn ngày mượn!' }]}>
+            <input type="date" style={{ width: '100%', padding: '6px 12px', border: '1px solid var(--border-color)', borderRadius: 8, background: 'var(--muted-light)', color: 'var(--text)' }} />
+          </Form.Item>
+          <Form.Item label="Ngày Trả" name="returnDate" rules={[{ required: true, message: 'Chọn ngày trả!' }]}>
+            <input type="date" style={{ width: '100%', padding: '6px 12px', border: '1px solid var(--border-color)', borderRadius: 8, background: 'var(--muted-light)', color: 'var(--text)' }} />
+          </Form.Item>
+          <Form.Item label="Ghi chú" name="note">
+            <Input.TextArea rows={2} placeholder="Mục đích sử dụng combo..." />
+          </Form.Item>
+          <Form.Item>
+            <Button type="primary" htmlType="submit" block loading={loading} size="large" icon={<SendOutlined />}>
+              Gửi Yêu Cầu Mượn Combo
             </Button>
           </Form.Item>
         </Form>

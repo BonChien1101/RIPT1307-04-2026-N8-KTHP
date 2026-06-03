@@ -68,6 +68,8 @@ interface Equipment {
   status?: 'available' | 'maintenance' | 'unavailable';
   condition_status?: string;
   rating_avg?: number;
+  storage_location?: string;
+  max_borrow_days?: number;
 }
 
 interface BorrowRequest {
@@ -75,12 +77,20 @@ interface BorrowRequest {
   user_id: number;
   borrow_date: string;
   expected_return_date: string;
+  actual_return_date?: string;
   status: 'pending' | 'approved' | 'rejected' | 'borrowed' | 'returned' | 'overdue';
   note?: string;
+  // Joined fields (from backend fix)
+  full_name?: string;
+  email?: string;
+  student_code?: string;
+  trust_score?: number;
+  trust_rank?: string;
+  equipment_names?: string;
+  club_status?: string;
 }
 
 interface BorrowRequestDetail extends BorrowRequest {
-  actual_return_date?: string;
   items?: Array<{ id: number; equipment_id: number; quantity: number }>;
 }
 
@@ -129,6 +139,14 @@ const Admin: React.FC = () => {
   const [aiSuggestions, setAiSuggestions] = useState<Array<{ name: string; reason: string; equipment: string[] }>>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [usersWithTrust, setUsersWithTrust] = useState<any[]>([]);
+  const [borrowFilter, setBorrowFilter] = useState<string>('');
+  const [pendingCount, setPendingCount] = useState<number>(0);
+  const [combos, setCombos] = useState<any[]>([]);
+  const [clubs, setClubs] = useState<any[]>([]);
+  const [isComboModalVisible, setIsComboModalVisible] = useState(false);
+  const [isClubModalVisible, setIsClubModalVisible] = useState(false);
+  const [comboForm] = Form.useForm();
+  const [clubForm] = Form.useForm();
   const apiUrl = getApiUrl();
 
   const [stats, setStats] = useState({ totalEquipment: 0, totalBorrowed: 0, pendingRequests: 0 });
@@ -184,14 +202,22 @@ const Admin: React.FC = () => {
     fetchOverdueRate();
     fetchAiSuggestions();
     fetchUsersWithTrust();
+    fetchCombos();
+    fetchClubs();
   }, []);
 
   const fetchBorrowRequests = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${apiUrl}/borrow-requests`, { headers: { Authorization: `Bearer ${token}` } });
+      const url = borrowFilter ? `${apiUrl}/borrow-requests?status=${borrowFilter}` : `${apiUrl}/borrow-requests`;
+      const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (response.status === 401) { handleUnauthorized(); return; }
-      if (response.ok) { const payload = await response.json(); setBorrowRequests(payload?.data || []); }
+      if (response.ok) {
+        const payload = await response.json();
+        const list = payload?.data || [];
+        setBorrowRequests(list);
+        setPendingCount(list.filter((r: any) => r.status === 'pending').length);
+      }
     } catch { message.error('Lỗi tải danh sách yêu cầu!'); }
   };
 
@@ -231,6 +257,22 @@ const Admin: React.FC = () => {
       const token = localStorage.getItem('token');
       const res = await fetch(`${apiUrl}/trust`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) { const data = await res.json(); setUsersWithTrust(data?.data || []); }
+    } catch {}
+  };
+
+  const fetchCombos = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${apiUrl}/combos`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) { const data = await res.json(); setCombos(data?.data || []); }
+    } catch {}
+  };
+
+  const fetchClubs = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${apiUrl}/clubs`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) { const data = await res.json(); setClubs(data?.data || []); }
     } catch {}
   };
 
@@ -424,28 +466,65 @@ const Admin: React.FC = () => {
   };
 
   // ============ COLUMNS ============
-  const requestColumns = [
-    { title: 'Mã', dataIndex: 'id', key: 'id', width: 60, render: (id: number) => `#${id}` },
-    { title: 'User ID', dataIndex: 'user_id', key: 'user_id', width: 80 },
-    { title: 'Ngày Mượn', dataIndex: 'borrow_date', key: 'borrow_date' },
-    { title: 'Ngày Trả', dataIndex: 'expected_return_date', key: 'expected_return_date' },
-    { title: 'Trạng Thái', dataIndex: 'status', key: 'status', render: statusBadge },
+  const borrowColumns = [
+    { title: '#', dataIndex: 'id', key: 'id', width: 60, render: (id: number) => `#${id}` },
+    {
+      title: 'Sinh Viên',
+      key: 'student',
+      width: 180,
+      render: (_: any, r: BorrowRequest) => (
+        <div>
+          <div style={{ fontWeight: 600 }}>{r.full_name || `User #${r.user_id}`}</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)' }}>{r.student_code || r.email}</div>
+          {r.trust_rank && <Tag color={r.trust_rank === 'gold' ? 'gold' : r.trust_rank === 'silver' ? 'default' : 'orange'} style={{ fontSize: 10 }}>{r.trust_rank.toUpperCase()}</Tag>}
+        </div>
+      ),
+    },
+    {
+      title: 'Thiết Bị',
+      dataIndex: 'equipment_names',
+      key: 'equipment_names',
+      ellipsis: true,
+      render: (v: string) => v ? <Tooltip title={v}><span>{v}</span></Tooltip> : <span style={{color:'var(--muted)'}}>Xem chi tiết</span>,
+    },
+    { title: 'Ngày Mượn', dataIndex: 'borrow_date', key: 'borrow_date', width: 100 },
+    { title: 'Ngày Trả', dataIndex: 'expected_return_date', key: 'expected_return_date', width: 100 },
+    {
+      title: 'Trạng Thái',
+      dataIndex: 'status',
+      key: 'status',
+      width: 130,
+      render: (status: string) => {
+        const map: Record<string, JSX.Element> = {
+          pending: <Badge status="processing" text="Chờ Duyệt" />,
+          approved: <Badge status="success" text="Đã Duyệt" />,
+          borrowed: <Badge status="warning" text="Đang Mượn" />,
+          rejected: <Badge status="error" text="Từ Chối" />,
+          returned: <Badge status="default" text="Đã Trả" />,
+          overdue: <Badge color="red" text="Quá Hạn" />,
+        };
+        return map[status] || <Badge status="default" text={status} />;
+      },
+    },
     {
       title: 'Hành Động',
       key: 'action',
+      width: 220,
       render: (_: any, record: BorrowRequest) => (
-        <Space size="small">
+        <Space size="small" wrap>
           <Button size="small" icon={<EyeOutlined />} onClick={() => fetchViewRequestDetail(record.id)}>Chi tiết</Button>
           {record.status === 'pending' && (
             <>
-              <Button type="primary" size="small" icon={<CheckCircleOutlined />} onClick={() => handleApprove(record.id)}>Duyệt</Button>
-              <Popconfirm title="Từ chối yêu cầu này?" onConfirm={() => handleReject(record.id)} okText="Có" cancelText="Không">
-                <Button danger size="small" icon={<CloseCircleOutlined />}>Từ chối</Button>
-              </Popconfirm>
+              <Button size="small" type="primary" icon={<CheckCircleOutlined />} onClick={() => handleApprove(record.id)}>Đồng ý</Button>
+              <Button size="small" danger icon={<CloseCircleOutlined />} onClick={() => handleReject(record.id)}>Từ chối</Button>
             </>
           )}
-          {record.status === 'approved' && <Button size="small" onClick={() => handleMarkBorrowed(record.id)}>Ghi Nhận Mượn</Button>}
-          {record.status === 'borrowed' && <Button size="small" onClick={() => handleMarkReturned(record.id)}>Ghi Nhận Trả</Button>}
+          {record.status === 'approved' && (
+            <Button size="small" icon={<SaveOutlined />} onClick={() => handleMarkBorrowed(record.id)}>Giao đồ</Button>
+          )}
+          {record.status === 'borrowed' && (
+            <Button size="small" onClick={() => handleMarkReturned(record.id)} style={{background:'#12b76a',borderColor:'#12b76a',color:'#fff'}}>Nhận trả</Button>
+          )}
         </Space>
       ),
     },
@@ -510,7 +589,7 @@ const Admin: React.FC = () => {
   const trustColumns = [
     { title: 'Sinh viên', dataIndex: 'full_name', key: 'full_name', render: (t: string) => <strong>{t}</strong> },
     { title: 'Email', dataIndex: 'email', key: 'email', ellipsis: true },
-    { title: 'CLB', dataIndex: 'club', key: 'club', render: (v: string) => v || '—' },
+    { title: 'CLB', dataIndex: 'club_name', key: 'club_name', render: (v: string) => v || '—' },
     {
       title: 'Điểm uy tín',
       dataIndex: 'trust_score',
@@ -753,6 +832,9 @@ const Admin: React.FC = () => {
     { key: 'overview', icon: <BarChartOutlined />, label: 'Tổng Quan' },
     { key: 'requests', icon: <SaveOutlined />, label: 'Yêu Cầu Mượn' },
     { key: 'equipment', icon: <BgColorsOutlined />, label: 'Quản Lý Thiết Bị' },
+    { key: 'combos', icon: <ThunderboltOutlined />, label: 'Combo Thiết Bị' },
+    { key: 'clubs', icon: <TeamOutlined />, label: 'Câu Lạc Bộ' },
+    { key: 'overdue', icon: <CloseCircleOutlined />, label: 'Quá Hạn' },
     { key: 'calendar', icon: <CalendarOutlined />, label: 'Lịch Mượn' },
     { key: 'maintenance', icon: <ToolOutlined />, label: 'Bảo Trì' },
     { key: 'tickets', icon: <BugOutlined />, label: 'Báo Lỗi' },
@@ -823,7 +905,30 @@ const Admin: React.FC = () => {
 
             {activeTab === 'requests' && (
               <Card title="📋 Danh Sách Yêu Cầu Mượn" className="content-card">
-                <Table columns={requestColumns} dataSource={borrowRequests} rowKey="id" pagination={{ pageSize: 10 }} loading={loading} />
+                {/* Filter bar */}
+                <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <Select
+                    allowClear
+                    placeholder="Lọc theo trạng thái"
+                    style={{ width: 180 }}
+                    value={borrowFilter || undefined}
+                    onChange={(v) => { setBorrowFilter(v || ''); }}
+                    options={[
+                      { value: 'pending', label: 'Chờ duyệt' },
+                      { value: 'approved', label: 'Đã duyệt' },
+                      { value: 'borrowed', label: 'Đang mượn' },
+                      { value: 'returned', label: 'Đã trả' },
+                      { value: 'overdue', label: 'Quá hạn' },
+                      { value: 'rejected', label: 'Từ chối' },
+                    ]}
+                  />
+                  <Button onClick={fetchBorrowRequests}>Lọc</Button>
+                  <Button onClick={() => { setBorrowFilter(''); fetchBorrowRequests(); }}>Xóa lọc</Button>
+                  <Badge count={pendingCount} style={{ marginLeft: 8 }}>
+                    <span style={{ fontWeight: 600, color: 'var(--text)' }}>Chờ duyệt: {pendingCount} đơn</span>
+                  </Badge>
+                </div>
+                <Table columns={borrowColumns} dataSource={borrowRequests} rowKey="id" pagination={{ pageSize: 10 }} loading={loading} />
               </Card>
             )}
 
@@ -873,6 +978,110 @@ const Admin: React.FC = () => {
                   dataSource={usersWithTrust}
                   pagination={{ pageSize: 10 }}
                   size="small"
+                />
+              </Card>
+            )}
+
+            {activeTab === 'combos' && (
+              <Card title="⚡ Combo Thiết Bị" className="content-card"
+                extra={<Button type="primary" onClick={() => { comboForm.resetFields(); setIsComboModalVisible(true); }}>+ Tạo Combo</Button>}
+              >
+                <div className="equipment-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+                  {combos.map((combo: any) => (
+                    <div key={combo.id} style={{
+                      border: '1px solid var(--border-color)', borderRadius: 16, padding: 20,
+                      background: 'var(--card-bg)', transition: 'all 0.25s ease',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                        <div style={{ fontWeight: 700, fontSize: 16 }}>{combo.name}</div>
+                        <Tag color={combo.available ? 'green' : 'orange'}>{combo.available ? 'Sẵn sàng' : 'Thiếu thiết bị'}</Tag>
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>{combo.description}</div>
+                      <div style={{ marginBottom: 12 }}>
+                        {(combo.items || []).map((item: any) => (
+                          <div key={item.equipment_id} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', background: 'var(--muted-light)', borderRadius: 6, marginBottom: 4 }}>
+                            <span>{item.equipment_name}</span>
+                            <Tag>x{item.quantity}</Tag>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <Button size="small" danger onClick={async () => {
+                          const token = localStorage.getItem('token');
+                          await fetch(`${apiUrl}/combos/${combo.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+                          fetchCombos();
+                        }}>Xóa</Button>
+                      </div>
+                    </div>
+                  ))}
+                  {combos.length === 0 && <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: 40, color: 'var(--muted)' }}>Chưa có combo nào. Tạo combo đầu tiên!</div>}
+                </div>
+              </Card>
+            )}
+
+            {activeTab === 'clubs' && (
+              <Card title="🏛️ Câu Lạc Bộ" className="content-card"
+                extra={<Button type="primary" onClick={() => { clubForm.resetFields(); setIsClubModalVisible(true); }}>+ Tạo CLB</Button>}
+              >
+                <Table
+                  rowKey="id"
+                  dataSource={clubs}
+                  pagination={{ pageSize: 10 }}
+                  columns={[
+                    { title: 'Tên CLB', dataIndex: 'name', key: 'name', render: (v: string) => <strong>{v}</strong> },
+                    { title: 'Mô tả', dataIndex: 'description', key: 'description', ellipsis: true },
+                    { title: 'Trưởng CLB', dataIndex: 'leader_name', key: 'leader_name', render: (v: string) => v || 'Chưa chỉ định' },
+                    { title: 'Số TV', dataIndex: 'member_count', key: 'member_count' },
+                    {
+                      title: 'Hành động', key: 'action',
+                      render: (_: any, r: any) => (
+                        <Space>
+                          <Button size="small" icon={<EyeOutlined />}>Xem</Button>
+                          <Popconfirm title="Xóa CLB này?" onConfirm={async () => {
+                            const token = localStorage.getItem('token');
+                            await fetch(`${apiUrl}/clubs/${r.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+                            fetchClubs();
+                          }}>
+                            <Button size="small" danger>Xóa</Button>
+                          </Popconfirm>
+                        </Space>
+                      )
+                    }
+                  ]}
+                />
+              </Card>
+            )}
+
+            {activeTab === 'overdue' && (
+              <Card title="⏰ Danh sách quá hạn" className="content-card"
+                extra={<Button onClick={async () => {
+                  const token = localStorage.getItem('token');
+                  await fetch(`${apiUrl}/admin/trigger-overdue`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+                  message.success('Overdue check triggered!');
+                  fetchBorrowRequests();
+                }}>Chạy kiểm tra quá hạn</Button>}
+              >
+                <Table
+                  rowKey="id"
+                  dataSource={borrowRequests.filter((r: any) => r.status === 'overdue' || (r.status === 'borrowed' && r.expected_return_date < new Date().toISOString().slice(0, 10)))}
+                  pagination={{ pageSize: 10 }}
+                  columns={[
+                    { title: '#', dataIndex: 'id', key: 'id', width: 60, render: (id: number) => `#${id}` },
+                    { title: 'Sinh Viên', key: 'student', render: (_: any, r: any) => (
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{r.full_name || `User #${r.user_id}`}</div>
+                        <div style={{ fontSize: 11, color: 'var(--muted)' }}>{r.student_code}</div>
+                      </div>
+                    )},
+                    { title: 'Thiết bị', dataIndex: 'equipment_names', key: 'equipment_names', ellipsis: true },
+                    { title: 'Hạn trả', dataIndex: 'expected_return_date', key: 'expected_return_date',
+                      render: (v: string) => <span style={{color:'#f04438',fontWeight:700}}>{v}</span> },
+                    { title: 'Trạng thái', dataIndex: 'status', key: 'status',
+                      render: (s: string) => <Badge color={s==='overdue'?'red':'orange'} text={s==='overdue'?'Quá hạn':'Đang mượn (sắp trễ)'} /> },
+                    { title: 'Hành động', key: 'action', render: (_: any, r: any) => (
+                      r.status === 'borrowed' && <Button size="small" onClick={() => handleMarkReturned(r.id)} style={{background:'#12b76a',color:'#fff'}}>Nhận trả</Button>
+                    )},
+                  ]}
                 />
               </Card>
             )}
@@ -928,6 +1137,19 @@ const Admin: React.FC = () => {
               { label: '🔴 Hỏng', value: 'broken' },
             ]} />
           </Form.Item>
+          <Form.Item label="Vị trí lưu kho" name="storage_location">
+            <Input placeholder="Kệ A - Phòng 101, Tủ B - Tầng 2..." />
+          </Form.Item>
+          <Form.Item label="Thời gian mượn tối đa (ngày)" name="max_borrow_days" initialValue={14}>
+            <InputNumber min={1} max={90} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item label="Tình trạng" name="condition_status_new" initialValue="good">
+            <Select options={[
+              { value: 'good', label: 'Tốt' },
+              { value: 'fair', label: 'Bình thường' },
+              { value: 'poor', label: 'Cần kiểm tra' },
+            ]} />
+          </Form.Item>
           <Form.Item>
             <Button type="primary" htmlType="submit" block loading={loading}>
               {selectedEquipment ? 'Cập Nhật Thiết Bị' : 'Thêm Thiết Bị'}
@@ -961,6 +1183,8 @@ const Admin: React.FC = () => {
                 ['Còn lại', selectedEquipmentDetail.available_quantity],
                 ['Đang mượn', selectedEquipmentDetail.total_quantity - selectedEquipmentDetail.available_quantity],
                 ['Trạng thái', selectedEquipmentDetail.status || '—'],
+                ['Vị trí lưu kho', selectedEquipmentDetail.storage_location || 'Chưa có'],
+                ['Mượn tối đa', `${selectedEquipmentDetail.max_borrow_days || 14} ngày`],
               ].map(([label, value]) => (
                 <p key={String(label)} style={{ margin: '6px 0' }}>
                   <strong>{label}:</strong> {value}
@@ -1019,6 +1243,76 @@ const Admin: React.FC = () => {
             )}
           </Space>
         )}
+      </Modal>
+
+      {/* Combo Modal */}
+      <Modal
+        title="Tạo Combo Thiết Bị"
+        visible={isComboModalVisible}
+        onCancel={() => setIsComboModalVisible(false)}
+        footer={null}
+        width={600}
+        destroyOnClose
+      >
+        <Form form={comboForm} layout="vertical" onFinish={async (values) => {
+          const token = localStorage.getItem('token');
+          const items = (values.items || '').split('\n').filter(Boolean).map((line: string) => {
+            const [equipment_id, quantity] = line.split(',').map((s: string) => s.trim());
+            return { equipment_id: Number(equipment_id), quantity: Number(quantity) || 1 };
+          });
+          await fetch(`${apiUrl}/combos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ ...values, items }),
+          });
+          message.success('Tạo combo thành công!');
+          setIsComboModalVisible(false);
+          fetchCombos();
+        }}>
+          <Form.Item label="Tên combo" name="name" rules={[{ required: true }]}>
+            <Input placeholder="VD: Combo Sự kiện ngoài trời" />
+          </Form.Item>
+          <Form.Item label="Mô tả" name="description">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item label="Thiết bị (mỗi dòng: equipment_id, số lượng)" name="items" help="VD: 1,2 → thiết bị #1, 2 cái">
+            <Input.TextArea rows={5} placeholder="1,1&#10;2,2&#10;3,1" />
+          </Form.Item>
+          <Form.Item>
+            <Button type="primary" htmlType="submit" block>Tạo Combo</Button>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Club Modal */}
+      <Modal
+        title="Tạo Câu Lạc Bộ"
+        visible={isClubModalVisible}
+        onCancel={() => setIsClubModalVisible(false)}
+        footer={null}
+        destroyOnClose
+      >
+        <Form form={clubForm} layout="vertical" onFinish={async (values) => {
+          const token = localStorage.getItem('token');
+          await fetch(`${apiUrl}/clubs`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(values),
+          });
+          message.success('Tạo CLB thành công!');
+          setIsClubModalVisible(false);
+          fetchClubs();
+        }}>
+          <Form.Item label="Tên CLB" name="name" rules={[{ required: true }]}>
+            <Input placeholder="VD: CLB Media & Truyền Thông" />
+          </Form.Item>
+          <Form.Item label="Mô tả" name="description">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item>
+            <Button type="primary" htmlType="submit" block>Tạo CLB</Button>
+          </Form.Item>
+        </Form>
       </Modal>
 
       {/* Floating ChatBot */}

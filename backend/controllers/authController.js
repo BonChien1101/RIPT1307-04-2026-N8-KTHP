@@ -12,10 +12,6 @@ const isDbConnectionError = (error) => {
 };
 
 const loadRoleContext = async (userId, baseRole) => {
-	if (baseRole !== 'admin') {
-		return { roles: ['student'], permissions: [] };
-	}
-
 	const [roleRows] = await sequelize.query(
 		`SELECT r.name
 		 FROM user_roles ur
@@ -26,7 +22,7 @@ const loadRoleContext = async (userId, baseRole) => {
 	);
 
 	const roles = roleRows.map((row) => row.name);
-	if (!roles.length) roles.push('admin');
+	if (!roles.length) roles.push(baseRole || 'student');
 
 	const [permissionRows] = await sequelize.query(
 		`SELECT DISTINCT p.name
