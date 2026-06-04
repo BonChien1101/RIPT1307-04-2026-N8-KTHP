@@ -120,8 +120,14 @@ if (require.main === module) {
 	const server = http.createServer(app);
 	socketManager.init(server);
 	scheduleOverdueJob();
-	server.listen(port, () => {
+	server.listen(port, '0.0.0.0', () => {
 		console.log(`API server running on http://localhost:${port}`);
+	}).on('error', (err) => {
+		if (err.code === 'EADDRINUSE') {
+			console.error(`Cổng ${port} đã bị sử dụng bởi một ứng dụng khác. Hãy kiểm tra lại.`);
+		} else {
+			console.error('Lỗi khi khởi động server:', err);
+		}
 	});
 }
 
