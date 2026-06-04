@@ -1,6 +1,7 @@
 /// <reference path="../../global.d.ts" />
 
 import React, { useEffect, useState } from 'react';
+import { useModel } from 'umi';
 import {
   Card,
   Form,
@@ -39,6 +40,7 @@ const Profile: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [form] = Form.useForm();
+  const { initialState, setInitialState } = useModel('@@initialState');
 
   const apiHost = (window as any).__API_URL__ || process.env.API_URL || window.location.origin;
   const apiUrl = `${apiHost}/api`;
@@ -134,21 +136,14 @@ const Profile: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         user.email = data.data.email;
         localStorage.setItem('user', JSON.stringify(user));
 
-        // Dispatch custom event to update header in real-time
+        // Update global state to refresh header in real-time
+        setInitialState((s: any) => ({ ...s, user: user }));
+
+        // Dispatch custom event for components not using useModel
         window.dispatchEvent(new CustomEvent('userUpdated', { detail: user }));
 
-        // If email changed, inform user about login account change
-        if (data.data.email !== userInfo?.email) {
-          message.warning(`Email tài khoản đã thay đổi thành: ${data.data.email}. Vui lòng đăng nhập lại với email mới!`);
-          setTimeout(() => {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            window.location.href = '/login';
-          }, 2000);
-        } else {
-          message.success('Cập nhật thông tin cá nhân thành công!');
-          setIsEditing(false);
-        }
+        message.success('Cập nhật thành công!');
+        setIsEditing(false);
       }
     } catch (error: any) {
       message.error(error.message || 'Lỗi cập nhật thông tin!');
@@ -182,7 +177,7 @@ const Profile: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
       {/* Basic Information */}
       <Card
         title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text)' }}>
             <UserOutlined />
             Thông Tin Cá Nhân
           </div>
@@ -199,7 +194,7 @@ const Profile: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
             </Button>
           ) : null
         }
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: 24, background: 'var(--card-bg)', borderColor: 'var(--border-color)' }}
       >
         {isEditing ? (
           <Form
@@ -273,20 +268,26 @@ const Profile: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
             </Form.Item>
           </Form>
         ) : (
-          <Descriptions column={1} size="small" bordered>
-            <Descriptions.Item label="Họ và Tên" icon={<UserOutlined />}>
+          <Descriptions 
+            column={1}
+            size="small" 
+            bordered
+            labelStyle={{ color: 'var(--text-secondary)', background: 'var(--muted-light)', borderColor: 'var(--border-color)' }}
+            contentStyle={{ color: 'var(--text)', background: 'var(--card-bg)', borderColor: 'var(--border-color)' }}
+          >
+            <Descriptions.Item label={<span><UserOutlined style={{ marginRight: 8 }} />Họ và Tên</span>}>
               {userInfo?.full_name}
             </Descriptions.Item>
-            <Descriptions.Item label="Email" icon={<MailOutlined />}>
+            <Descriptions.Item label={<span><MailOutlined style={{ marginRight: 8 }} />Email</span>}>
               {userInfo?.email}
             </Descriptions.Item>
             {userInfo?.student_code && (
-              <Descriptions.Item label="Mã Sinh Viên">
+              <Descriptions.Item label={<span style={{ paddingLeft: 24 }}>Mã Sinh Viên</span>}>
                 {userInfo.student_code}
               </Descriptions.Item>
             )}
             {userInfo?.created_at && (
-              <Descriptions.Item label="Ngày Tạo" icon={<CalendarOutlined />}>
+              <Descriptions.Item label={<span><CalendarOutlined style={{ marginRight: 8 }} />Ngày Tạo</span>}>
                 {new Date(userInfo.created_at).toLocaleDateString('vi-VN')}
               </Descriptions.Item>
             )}

@@ -1,6 +1,7 @@
 /// <reference path="../../../global.d.ts" />
 
 import React, { useEffect, useState } from 'react';
+import { useModel } from 'umi';
 import {
   Table,
   Button,
@@ -46,6 +47,7 @@ const UserManagement: React.FC = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
+  const { initialState, setInitialState } = useModel('@@initialState');
   const [formLoading, setFormLoading] = useState(false);
   const apiHost = (window as any).__API_URL__ || process.env.API_URL || window.location.origin;
   const apiUrl = `${apiHost}/api`;
@@ -164,7 +166,7 @@ const UserManagement: React.FC = () => {
       const method = editingUser ? 'PUT' : 'POST';
 
       // For creating new user, include password
-      const payload = editingUser
+      const updatedFields = editingUser
         ? {
             name: values.name,
             email: values.email,
@@ -184,15 +186,26 @@ const UserManagement: React.FC = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(updatedFields),
       });
 
+      const result = await response.json();
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to save user');
+        throw new Error(result.message || 'Failed to save user');
       }
 
-      message.success(editingUser ? 'Cập nhật người dùng thành công!' : 'Thêm người dùng thành công!');
+      message.success('Cập nhật thành công!');
+
+      // Update header username and local storage if editing current user
+      if (editingUser && initialState?.user?.id === editingUser.id) {
+        const newUserData = { ...initialState.user, ...updatedFields };
+        localStorage.setItem('user', JSON.stringify(newUserData));
+        setInitialState((s: any) => ({ ...s, user: newUserData }));
+        
+        // Trigger a global event for components that might not use useModel
+        window.dispatchEvent(new CustomEvent('userUpdated', { detail: newUserData }));
+      }
+
       setIsModalOpen(false);
       form.resetFields();
       fetchUsers();
@@ -281,9 +294,13 @@ const UserManagement: React.FC = () => {
 
   return (
     <div className="user-management fade-in">
-      <Card title={<div className="card-title">Quản Lý Người Dùng</div>} className="user-management-card">
+      <Card 
+        title={<div className="card-title" style={{ color: 'var(--text)' }}>Quản Lý Người Dùng</div>} 
+        className="user-management-card"
+        style={{ background: 'var(--card-bg)', borderColor: 'var(--border-color)' }}
+      >
         <div className="um-header" style={{ marginBottom: 18 }}>
-          <div className="um-title">Quản Lý Người Dùng</div>
+          <div className="um-title" style={{ color: 'var(--text)' }}>Quản Lý Người Dùng</div>
           <div className="um-actions">
             <Input.Search
               placeholder="Tìm kiếm tên hoặc email"
@@ -304,23 +321,39 @@ const UserManagement: React.FC = () => {
         {/* Statistics */}
         <Row gutter={16} style={{ marginBottom: 24 }}>
           <Col xs={12} sm={6}>
-            <Card>
-              <Statistic title="Tổng Người Dùng" value={stats.totalUsers} />
+            <Card style={{ background: 'var(--muted-light)', borderColor: 'var(--border-color)' }}>
+              <Statistic 
+                title={<span style={{ color: 'var(--text-secondary)' }}>Tổng Người Dùng</span>} 
+                value={stats.totalUsers} 
+                valueStyle={{ color: 'var(--text)' }}
+              />
             </Card>
           </Col>
           <Col xs={12} sm={6}>
-            <Card>
-              <Statistic title="Quản Trị Viên" value={stats.adminCount} />
+            <Card style={{ background: 'var(--muted-light)', borderColor: 'var(--border-color)' }}>
+              <Statistic 
+                title={<span style={{ color: 'var(--text-secondary)' }}>Quản Trị Viên</span>} 
+                value={stats.adminCount} 
+                valueStyle={{ color: 'var(--text)' }}
+              />
             </Card>
           </Col>
           <Col xs={12} sm={6}>
-            <Card>
-              <Statistic title="Sinh Viên" value={stats.studentCount} />
+            <Card style={{ background: 'var(--muted-light)', borderColor: 'var(--border-color)' }}>
+              <Statistic 
+                title={<span style={{ color: 'var(--text-secondary)' }}>Sinh Viên</span>} 
+                value={stats.studentCount} 
+                valueStyle={{ color: 'var(--text)' }}
+              />
             </Card>
           </Col>
           <Col xs={12} sm={6}>
-            <Card>
-              <Statistic title="Hoạt Động" value={stats.activeUsers} />
+            <Card style={{ background: 'var(--muted-light)', borderColor: 'var(--border-color)' }}>
+              <Statistic 
+                title={<span style={{ color: 'var(--text-secondary)' }}>Hoạt Động</span>} 
+                value={stats.activeUsers} 
+                valueStyle={{ color: 'var(--text)' }}
+              />
             </Card>
           </Col>
         </Row>

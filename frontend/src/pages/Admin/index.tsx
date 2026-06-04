@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import {
   Layout,
   Menu,
@@ -44,6 +44,7 @@ import {
   BulbOutlined,
   ThunderboltOutlined,
   MailOutlined,
+  MoonOutlined,
 } from '@ant-design/icons';
 import './styles.less';
 import { isStudentRole } from '../../utils/auth';
@@ -280,7 +281,7 @@ const Admin: React.FC = () => {
     setDarkMode(isDark);
   }, [isDark]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const userData = localStorage.getItem('user');
     if (userData && userData !== 'undefined' && userData !== 'null') {
       try {
@@ -299,7 +300,7 @@ const Admin: React.FC = () => {
     fetchBorrowRequests();
     fetchEquipment();
     fetchStats();
-    fetchTopBorrowedEquipment(new Date().getFullYear(), new Date().getMonth() + 1);
+    fetchTopBorrowedEquipment(new Date().getFullYear(), new Date().getMonth() + 1); // Initial fetch
     fetchMonthlyTrend();
     fetchOverdueRate();
     fetchAiSuggestions();
@@ -890,7 +891,7 @@ const Admin: React.FC = () => {
       <Header className="admin-header">
         <div className="header-content">
           <div className="header-title">
-            <DashboardOutlined style={{ fontSize: 24, marginRight: 10 }} />
+            <DashboardOutlined style={{ fontSize: 24, marginRight: 10, color: 'var(--header-text-light)' }} />
             <span>BorrowX – Smart Campus Borrowing</span>
           </div>
           <Space size={16} align="center">
@@ -900,7 +901,7 @@ const Admin: React.FC = () => {
                 onClick={toggleDarkMode}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 18, display: 'flex', alignItems: 'center' }}
               >
-                {isDark ? <BulbOutlined /> : <span style={{fontSize:18,lineHeight:1}}>🌙</span>}
+                {isDark ? <BulbOutlined style={{ color: 'var(--header-text-light)' }} /> : <MoonOutlined style={{ color: 'var(--header-text-light)' }} />}
               </button>
             </Tooltip>
 
@@ -908,16 +909,16 @@ const Admin: React.FC = () => {
             <NotificationBell userId={user?.id} apiUrl={apiUrl} />
 
             <Dropdown overlay={userMenu}>
-              <div className="user-info" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', padding: '6px 10px', borderRadius: 8 }}>
+              <div className="user-info">
                 <Avatar icon={<UserOutlined />} />
-                <span style={{ marginLeft: 10, color: '#fff' }}>{user?.full_name || user?.name || 'Admin'}</span>
+                <span>{user?.full_name || user?.name || 'Admin'}</span>
               </div>
             </Dropdown>
           </Space>
         </div>
       </Header>
 
-      <Layout className="admin-body-shell">
+      <Layout className="admin-body-shell" style={{ background: 'var(--card-bg)' }}>
         <Sider width={228} className="admin-sider">
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* Brand */}
@@ -930,7 +931,7 @@ const Admin: React.FC = () => {
             </div>
 
             <div style={{ flex: 1 }}>
-              <Menu mode="inline" selectedKeys={[activeTab]} onClick={(e) => setActiveTab(e.key)} items={siderItems} style={{ height: '100%', borderRight: 0 }} />
+              <Menu theme="light" mode="inline" selectedKeys={[activeTab]} onClick={(e) => setActiveTab(e.key)} items={siderItems} style={{ height: '100%', borderRight: 0 }} />
             </div>
 
             <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-color)' }}>
