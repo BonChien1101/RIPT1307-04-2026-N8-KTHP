@@ -13,6 +13,7 @@ import {
   Col,
   Descriptions,
   Spin,
+  Modal,
 } from 'antd';
 import {
   EditOutlined,
@@ -142,7 +143,7 @@ const Profile: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
         // Dispatch custom event for components not using useModel
         window.dispatchEvent(new CustomEvent('userUpdated', { detail: user }));
 
-        message.success('Cập nhật thành công!');
+        message.success('Thay đổi thông tin thành công.');
         setIsEditing(false);
       }
     } catch (error: any) {
@@ -152,7 +153,23 @@ const Profile: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     }
   };
 
+  const handleSubmit = (values: any) => {
+    const hasChanged = values.full_name !== userInfo?.full_name || values.email !== userInfo?.email;
+    if (!hasChanged) {
+      setIsEditing(false);
+      return;
+    }
 
+    Modal.confirm({
+      title: 'Xác nhận thay đổi',
+      content: 'Bạn có chắc chắn muốn thay đổi không?',
+      okText: 'Có',
+      cancelText: 'Không',
+      onOk: () => {
+        handleSaveBasicInfo(values);
+      },
+    });
+  };
 
   if (isLoadingUser) {
     return (
@@ -200,7 +217,7 @@ const Profile: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           <Form
             form={form}
             layout="vertical"
-            onFinish={handleSaveBasicInfo}
+            onFinish={handleSubmit}
           >
             <Row gutter={16}>
               <Col xs={24} sm={12}>

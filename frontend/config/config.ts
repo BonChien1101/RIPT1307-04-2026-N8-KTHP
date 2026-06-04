@@ -47,6 +47,13 @@ export default defineConfig({
       access: 'canStudent',
     },
     {
+      path: '/club-leader',
+      name: 'Trưởng CLB',
+      icon: 'TeamOutlined',
+      component: './ClubLeader',
+      layout: false,
+    },
+    {
       path: '/admin',
       name: 'Quản trị viên',
       icon: 'CrownOutlined',

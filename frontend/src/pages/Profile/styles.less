@@ -175,76 +175,81 @@
 
   // Dark mode overrides
   [data-theme='dark'] & {
-    background-color: var(--card-bg-dark);
-    color: var(--text-dark);
+    background-color: var(--bg);
+    color: var(--text);
 
     .ant-card {
-      background: var(--card-bg-dark);
-      border-color: var(--card-border-dark);
+      background: var(--card-bg);
+      border-color: var(--border-color);
 
       .ant-card-head {
-        background: var(--muted-dark);
-        border-bottom-color: var(--card-border-dark);
+        background: var(--muted-light);
+        border-bottom-color: var(--border-color);
 
         .ant-card-head-title {
-          color: var(--text-dark);
+          color: var(--text);
           svg {
-            color: var(--text-dark);
+            color: var(--accent-start);
           }
         }
       }
     }
 
     .ant-form {
+      .ant-form-item-label > label {
+        color: var(--text) !important;
+      }
+
       .ant-input,
       .ant-input-number,
       .ant-select-selector {
-        background-color: var(--muted-dark);
-        border-color: var(--border-color-dark);
-        color: var(--text-dark);
+        background-color: var(--muted-light) !important;
+        border-color: var(--border-color) !important;
+        color: var(--text) !important;
 
         .ant-input-prefix .anticon {
-          color: var(--text-secondary-dark);
+          color: var(--text-secondary);
         }
 
         &:hover {
-          border-color: var(--accent-start);
+          border-color: var(--accent-start) !important;
         }
 
         &:focus,
         &.ant-input-focused {
-          border-color: var(--accent-start);
-          box-shadow: 0 0 0 2px rgba(195, 155, 89, 0.2);
+          border-color: var(--accent-start) !important;
+          box-shadow: 0 0 0 2px rgba(195, 155, 89, 0.2) !important;
         }
       }
     }
 
     .ant-descriptions {
       .ant-descriptions-item-label {
-        color: var(--text-secondary-dark);
-        background: var(--muted-dark);
-        border-color: var(--card-border-dark);
+        color: var(--text-secondary);
+        background: var(--muted-light);
+        border-color: var(--border-color);
 
         svg {
-          color: var(--text-dark);
+          color: var(--text);
         }
       }
 
       .ant-descriptions-item-content {
-        color: var(--text-dark);
-        background: var(--card-bg-dark);
-        border-color: var(--card-border-dark);
+        color: var(--text);
+        background: var(--card-bg);
+        border-color: var(--border-color);
       }
     }
 
     .ant-btn-default {
-      background: var(--muted-dark);
-      border-color: var(--border-color-dark);
-      color: var(--text-dark);
+      background: rgba(255, 255, 255, 0.12) !important;
+      border-color: rgba(255, 255, 255, 0.2) !important;
+      color: #ffffff !important;
 
       &:hover {
-        color: var(--accent-start);
-        border-color: #0050b3;
+        color: var(--accent-start) !important;
+        border-color: var(--accent-start) !important;
+        background: rgba(255, 255, 255, 0.2) !important;
       }
     }
   }

@@ -3,8 +3,8 @@
   "private": true,
   "scripts": {
     "db:init": "npm run db:schema --prefix backend",
-    "dev": "concurrently \"npm run dev --prefix backend\" \"cross-env API_URL=http://localhost:5000 npm run start --prefix frontend\" \"browser-sync start --proxy http://localhost:8001 --files \"backend/**/*.*\" --no-open --port 3001\"",
-    "dev:open": "concurrently \"npm run dev --prefix backend\" \"cross-env API_URL=http://localhost:5000 npm run start --prefix frontend\" \"browser-sync start --proxy http://localhost:8001 --files \"backend/**/*.*\" --port 3001\""
+    "dev": "concurrently \"cross-env NODE_OPTIONS=--openssl-legacy-provider npm run dev --prefix backend\" \"cross-env NODE_OPTIONS=--openssl-legacy-provider API_URL=http://localhost:5000 npm run start --prefix frontend\" \"browser-sync start --proxy http://localhost:8001 --files \"backend/**/*.*\" --no-open --port 3001\"",
+    "dev:open": "concurrently \"cross-env NODE_OPTIONS=--openssl-legacy-provider npm run dev --prefix backend\" \"cross-env NODE_OPTIONS=--openssl-legacy-provider API_URL=http://localhost:5000 npm run start --prefix frontend\" \"browser-sync start --proxy http://localhost:8001 --files \"backend/**/*.*\" --port 3001\""
   },
   "devDependencies": {
     "concurrently": "^8.2.0",

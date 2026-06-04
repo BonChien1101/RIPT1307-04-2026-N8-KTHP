@@ -12,10 +12,6 @@ const isDbConnectionError = (error) => {
 };
 
 const loadRoleContext = async (userId, baseRole) => {
-	if (baseRole !== 'admin') {
-		return { roles: ['student'], permissions: [] };
-	}
-
 	const [roleRows] = await sequelize.query(
 		`SELECT r.name
 		 FROM user_roles ur
@@ -26,7 +22,7 @@ const loadRoleContext = async (userId, baseRole) => {
 	);
 
 	const roles = roleRows.map((row) => row.name);
-	if (!roles.length) roles.push('admin');
+	if (!roles.length) roles.push(baseRole || 'student');
 
 	const [permissionRows] = await sequelize.query(
 		`SELECT DISTINCT p.name
@@ -303,5 +299,44 @@ const capNhatProfile = async (req, res) => {
 	}
 };
 
-module.exports = { dangNhap, thongTinToi, dangKy, resetMatKhau, capNhatProfile };
+const layDanhSachNguoiDung = async (req, res) => {
+	try {
+		const [rows] = await sequelize.query(
+			'SELECT id, full_name, student_code, email, role, is_banned, trust_score, created_at FROM users ORDER BY id DESC'
+		);
+		return ok(res, rows, 'OK');
+	} catch (e) {
+		return fail(res, 'Lỗi lấy danh sách người dùng', 'INTERNAL_ERROR', 500);
+	}
+};
 
+const capNhatNguoiDung = async (req, res) => {
+	try {
+		const { id } = req.params;
+		const { full_name, role, status } = req.body;
+		const is_banned = status === 'inactive' ? 1 : 0;
+		
+		await sequelize.query(
+			'UPDATE users SET full_name = ?, role = ?, is_banned = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+			{ replacements: [full_name, role, is_banned, id] }
+		);
+		return ok(res, null, 'Cập nhật thành công');
+	} catch (e) {
+		return fail(res, 'Lỗi cập nhật người dùng', 'INTERNAL_ERROR', 500);
+	}
+};
+
+const xoaNguoiDung = async (req, res) => {
+	try {
+		const { id } = req.params;
+		await sequelize.query('DELETE FROM users WHERE id = ?', { replacements: [id] });
+		return ok(res, null, 'Xóa người dùng thành công');
+	} catch (e) {
+		return fail(res, 'Lỗi xóa người dùng', 'INTERNAL_ERROR', 500);
+	}
+};
+
+module.exports = { 
+	dangNhap, thongTinToi, dangKy, resetMatKhau, capNhatProfile,
+	layDanhSachNguoiDung, capNhatNguoiDung, xoaNguoiDung 
+};
