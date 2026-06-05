@@ -44,7 +44,6 @@ import {
   BulbOutlined,
   ThunderboltOutlined,
   MailOutlined,
-  MoonOutlined,
 } from '@ant-design/icons';
 import './styles.less';
 import { isStudentRole } from '../../utils/auth';
@@ -201,6 +200,8 @@ interface BorrowRequest {
   actual_return_date?: string;
   status: 'pending' | 'approved' | 'rejected' | 'borrowed' | 'returned' | 'overdue';
   note?: string;
+  is_overdue?: number;
+  days_overdue?: number;
   // Joined fields (from backend fix)
   full_name?: string;
   email?: string;
@@ -616,7 +617,7 @@ const Admin: React.FC = () => {
       ),
     },
     {
-      title: 'Thiết Bị',
+      title: 'Tên Thiết Bị',
       dataIndex: 'equipment_names',
       key: 'equipment_names',
       ellipsis: true,
@@ -657,7 +658,7 @@ const Admin: React.FC = () => {
           {record.status === 'approved' && (
             <Button size="small" icon={<SaveOutlined />} onClick={() => handleMarkBorrowed(record.id)}>Giao đồ</Button>
           )}
-          {record.status === 'borrowed' && (
+          {(record.status === 'borrowed' || record.status === 'overdue' || Number(record.is_overdue) === 1) && (
             <Button size="small" onClick={() => handleMarkReturned(record.id)} style={{background:'#12b76a',borderColor:'#12b76a',color:'#fff'}}>Nhận trả</Button>
           )}
         </Space>
@@ -997,7 +998,7 @@ const Admin: React.FC = () => {
                 onClick={toggleDarkMode}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 18, display: 'flex', alignItems: 'center' }}
               >
-                {isDark ? <BulbOutlined style={{ color: 'var(--header-text-light)' }} /> : <MoonOutlined style={{ color: 'var(--header-text-light)' }} />}
+                {isDark ? <BulbOutlined style={{ color: 'var(--header-text-light)' }} /> : <BgColorsOutlined style={{ color: 'var(--header-text-light)' }} />}
               </button>
             </Tooltip>
 
@@ -1210,7 +1211,7 @@ const Admin: React.FC = () => {
               >
                 <Table
                   rowKey="id"
-                  dataSource={borrowRequests.filter((r: any) => r.status === 'overdue' || (r.status === 'borrowed' && r.expected_return_date < new Date().toISOString().slice(0, 10)))}
+                  dataSource={borrowRequests.filter((r: any) => r.status === 'overdue' || Number(r.is_overdue) === 1 || (r.status === 'borrowed' && r.expected_return_date < new Date().toISOString().slice(0, 10)))}
                   pagination={{ pageSize: 10 }}
                   columns={[
                     { title: '#', dataIndex: 'id', key: 'id', width: 60, render: (id: number) => `#${id}` },
@@ -1220,13 +1221,13 @@ const Admin: React.FC = () => {
                         <div style={{ fontSize: 11, color: 'var(--muted)' }}>{r.student_code}</div>
                       </div>
                     )},
-                    { title: 'Thiết bị', dataIndex: 'equipment_names', key: 'equipment_names', ellipsis: true },
+                    { title: 'Tên Thiết Bị', dataIndex: 'equipment_names', key: 'equipment_names', ellipsis: true, render: (v: string) => v ? <Tooltip title={v}><span>{v}</span></Tooltip> : '—' },
                     { title: 'Hạn trả', dataIndex: 'expected_return_date', key: 'expected_return_date',
                       render: (v: string) => <span style={{color:'#f04438',fontWeight:700}}>{v}</span> },
                     { title: 'Trạng thái', dataIndex: 'status', key: 'status',
-                      render: (s: string) => <Badge color={s==='overdue'?'red':'orange'} text={s==='overdue'?'Quá hạn':'Đang mượn (sắp trễ)'} /> },
+                      render: (_: string, r: any) => <Badge color={(r.status==='overdue' || Number(r.is_overdue) === 1) ? 'red' : 'orange'} text={(r.status==='overdue' || Number(r.is_overdue) === 1) ? 'Quá hạn' : 'Đang mượn (sắp trễ)'} /> },
                     { title: 'Hành động', key: 'action', render: (_: any, r: any) => (
-                      r.status === 'borrowed' && <Button size="small" onClick={() => handleMarkReturned(r.id)} style={{background:'#12b76a',color:'#fff'}}>Nhận trả</Button>
+                      (r.status === 'borrowed' || r.status === 'overdue' || Number(r.is_overdue) === 1) && <Button size="small" onClick={() => handleMarkReturned(r.id)} style={{background:'#12b76a',color:'#fff'}}>Nhận trả</Button>
                     )},
                   ]}
                 />
@@ -1378,6 +1379,7 @@ const Admin: React.FC = () => {
                 pagination={false}
                 columns={[
                   { title: 'Mã thiết bị', dataIndex: 'equipment_id', key: 'equipment_id' },
+                  { title: 'Tên thiết bị', dataIndex: 'equipment_name', key: 'equipment_name', render: (v: string) => v || '—' },
                   { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity' },
                 ]}
                 size="small"

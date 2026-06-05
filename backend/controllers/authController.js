@@ -11,6 +11,18 @@ const isDbConnectionError = (error) => {
 	);
 };
 
+const normalizeUserRow = (row) => {
+	if (!row) return row;
+	const isBanned = Number(row.is_banned) === 1;
+	return {
+		...row,
+		name: row.full_name ?? row.name ?? '',
+		full_name: row.full_name ?? row.name ?? '',
+		status: row.status ?? (isBanned ? 'inactive' : 'active'),
+		is_banned: isBanned ? 1 : 0,
+	};
+};
+
 const loadRoleContext = async (userId, baseRole) => {
 	const [roleRows] = await sequelize.query(
 		`SELECT r.name
@@ -302,23 +314,130 @@ const capNhatProfile = async (req, res) => {
 const layDanhSachNguoiDung = async (req, res) => {
 	try {
 		const [rows] = await sequelize.query(
-			'SELECT id, full_name, student_code, email, role, is_banned, trust_score, created_at FROM users ORDER BY id DESC'
+			`SELECT id, full_name, student_code, email, role, is_banned, trust_score, trust_rank, created_at, updated_at
+			 FROM users ORDER BY id DESC`
 		);
-		return ok(res, rows, 'OK');
+		return ok(res, rows.map(normalizeUserRow), 'OK');
 	} catch (e) {
 		return fail(res, 'Lỗi lấy danh sách người dùng', 'INTERNAL_ERROR', 500);
+	}
+};
+
+const layChiTietNguoiDung = async (req, res) => {
+	try {
+		const id = Number(req.params.id);
+		if (!id) return fail(res, 'ID người dùng không hợp lệ', 'VALIDATION_ERROR', 400);
+
+		const [rows] = await sequelize.query(
+			`SELECT id, full_name, student_code, email, role, is_banned, trust_score, trust_rank, created_at, updated_at
+			 FROM users WHERE id = ? LIMIT 1`,
+			{ replacements: [id] }
+		);
+		const user = normalizeUserRow(rows?.[0]);
+		if (!user) return fail(res, 'Không tìm thấy người dùng', 'NOT_FOUND', 404);
+		return ok(res, user, 'OK');
+	} catch (e) {
+		return fail(res, 'Lỗi lấy chi tiết người dùng', 'INTERNAL_ERROR', 500);
+	}
+};
+
+const taoNguoiDung = async (req, res) => {
+	try {
+		const {
+			full_name: fullNameRaw,
+			name: legacyNameRaw,
+			student_code: studentCodeRaw,
+			email: emailRaw,
+			password: passwordRaw,
+			role: roleRaw,
+			status: statusRaw,
+		} = req.body || {};
+
+		const fullName = String(fullNameRaw || legacyNameRaw || '').trim();
+		const studentCode = String(studentCodeRaw || '').trim();
+		const email = String(emailRaw || '').trim();
+		const password = String(passwordRaw || '').trim();
+		const role = String(roleRaw || 'student').trim() || 'student';
+		const status = String(statusRaw || 'active').trim();
+		const isBanned = status === 'inactive' ? 1 : 0;
+
+		const errors = [];
+		if (!fullName) errors.push({ field: 'full_name', message: 'Họ tên là bắt buộc' });
+		if (!email) errors.push({ field: 'email', message: 'Email là bắt buộc' });
+		if (!password) errors.push({ field: 'password', message: 'Mật khẩu là bắt buộc' });
+		if (errors.length) return fail(res, 'Dữ liệu không hợp lệ', 'VALIDATION_ERROR', 400, errors);
+
+		const [emailExists] = await sequelize.query('SELECT id FROM users WHERE email = ? LIMIT 1', {
+			replacements: [email],
+		});
+		if (emailExists?.length) return fail(res, 'Email đã được sử dụng', 'CONFLICT', 409);
+
+		if (studentCode) {
+			const [codeExists] = await sequelize.query('SELECT id FROM users WHERE student_code = ? LIMIT 1', {
+				replacements: [studentCode],
+			});
+			if (codeExists?.length) return fail(res, 'Mã sinh viên đã tồn tại', 'CONFLICT', 409);
+		}
+
+		const [result, metadata] = await sequelize.query(
+			`INSERT INTO users (full_name, student_code, email, password, role, is_banned)
+			 VALUES (?, ?, ?, ?, ?, ?)`,
+			{ replacements: [fullName, studentCode || null, email, password, role, isBanned] }
+		);
+
+		const id = getInsertedId(result, metadata);
+		return ok(
+			res,
+			normalizeUserRow({
+				id,
+				full_name: fullName,
+				student_code: studentCode || null,
+				email,
+				role,
+				is_banned: isBanned,
+				status: isBanned ? 'inactive' : 'active',
+			}),
+			'Tạo người dùng thành công',
+			201
+		);
+	} catch (e) {
+		if (isDbConnectionError(e)) {
+			return fail(res, 'Không kết nối được CSDL cục bộ. Hãy chạy npm run db:init.', 'DB_CONNECTION_ERROR', 503);
+		}
+		if (e?.original?.code === 'ER_DUP_ENTRY') {
+			const message = String(e?.original?.sqlMessage || 'Dữ liệu đã tồn tại');
+			if (message.includes('email')) return fail(res, 'Email đã được sử dụng', 'CONFLICT', 409);
+			if (message.includes('student_code')) return fail(res, 'Mã sinh viên đã tồn tại', 'CONFLICT', 409);
+		}
+		return fail(res, 'Lỗi tạo người dùng', 'INTERNAL_ERROR', 500);
 	}
 };
 
 const capNhatNguoiDung = async (req, res) => {
 	try {
 		const { id } = req.params;
-		const { full_name, role, status } = req.body;
+		const { full_name, name, student_code, email, role, status } = req.body || {};
+		const fullName = String(full_name || name || '').trim();
+		const studentCode = student_code === undefined ? undefined : String(student_code || '').trim();
+		const emailValue = email === undefined ? undefined : String(email || '').trim();
+		const roleValue = String(role || 'student').trim() || 'student';
 		const is_banned = status === 'inactive' ? 1 : 0;
-		
+
+		const updateFields = ['full_name = ?', 'role = ?', 'is_banned = ?', 'updated_at = CURRENT_TIMESTAMP'];
+		const replacements = [fullName, roleValue, is_banned, id];
+
+		if (studentCode !== undefined) {
+			updateFields.splice(1, 0, 'student_code = ?');
+			replacements.splice(1, 0, studentCode || null);
+		}
+		if (emailValue !== undefined) {
+			updateFields.splice(2, 0, 'email = ?');
+			replacements.splice(2, 0, emailValue || null);
+		}
+
 		await sequelize.query(
-			'UPDATE users SET full_name = ?, role = ?, is_banned = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-			{ replacements: [full_name, role, is_banned, id] }
+			`UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`,
+			{ replacements }
 		);
 		return ok(res, null, 'Cập nhật thành công');
 	} catch (e) {
@@ -338,5 +457,5 @@ const xoaNguoiDung = async (req, res) => {
 
 module.exports = { 
 	dangNhap, thongTinToi, dangKy, resetMatKhau, capNhatProfile,
-	layDanhSachNguoiDung, capNhatNguoiDung, xoaNguoiDung 
+	taoNguoiDung, layDanhSachNguoiDung, layChiTietNguoiDung, capNhatNguoiDung, xoaNguoiDung 
 };

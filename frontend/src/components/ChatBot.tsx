@@ -159,6 +159,13 @@ const findEquipmentsByPurpose = (query: string, equipments: EquipmentLite[]) => 
 const formatEquipmentLine = (item: EquipmentLite) =>
   `- ${item.name}: còn ${item.available_quantity ?? 0}/${item.total_quantity ?? 0}, ${statusText(item.status)}`;
 
+const pickReply = (...options: string[]) => options[Math.floor(Math.random() * options.length)];
+
+const wrapReply = (intro: string, body: string, followUp?: string) => {
+  const lead = pickReply('Mình xem qua rồi,', 'Để mình nói ngắn gọn nhé,', 'Ừ, mình trả lời như sau,');
+  return `${lead} ${intro} ${body}${followUp ? `\n\n${followUp}` : ''}`;
+};
+
 const ChatBot: React.FC<ChatBotProps> = ({ apiUrl }) => {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -166,7 +173,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ apiUrl }) => {
       id: 1,
       role: 'bot',
       content:
-        'Xin chào! Tôi là **BorrowBot**. Bạn có thể hỏi tên thiết bị, tình trạng còn hàng, cách mượn/trả, điểm uy tín, combo phù hợp cho sự kiện hoặc trạng thái yêu cầu của bạn.',
+        'Xin chào! Mình là **BorrowBot**. Cứ hỏi thoải mái nhé: thiết bị còn hàng không, mượn gì cho sự kiện, trạng thái yêu cầu ra sao, hay điểm uy tín hoạt động thế nào.',
       time: formatTime(new Date()),
     },
   ]);
@@ -255,11 +262,17 @@ const ChatBot: React.FC<ChatBotProps> = ({ apiUrl }) => {
     const purposePicks = findEquipmentsByPurpose(rawInput, activeEquipments);
 
     if (/^(hi|hello|chao|xin chao|alo)/.test(text)) {
-      return 'Chào bạn! Bạn cứ hỏi tự nhiên, ví dụ: “Camera Sony còn không?”, “Tôi cần quay video thì mượn gì?”, hoặc “Yêu cầu của tôi đang ở trạng thái nào?”.';
+      return pickReply(
+        'Chào bạn! Bạn cứ hỏi tự nhiên, ví dụ: “Camera Sony còn không?”, “Tôi cần quay video thì mượn gì?”, hoặc “Yêu cầu của tôi đang ở trạng thái nào?”.',
+        'Chào bạn, mình đang theo dữ liệu kho hiện tại. Bạn chỉ cần nói nhu cầu, mình sẽ gợi ý thứ phù hợp.'
+      );
     }
 
     if (/cam on|thanks|thank/.test(text)) {
-      return 'Rất vui được hỗ trợ bạn. Khi cần mượn thiết bị, bạn nên ghi rõ mục đích và ngày trả dự kiến để admin duyệt nhanh hơn.';
+      return pickReply(
+        'Rất vui được hỗ trợ bạn. Khi cần mượn thiết bị, bạn nên ghi rõ mục đích và ngày trả dự kiến để admin duyệt nhanh hơn.',
+        'Không có gì đâu. Nếu bạn muốn, mình có thể gợi ý luôn thiết bị phù hợp cho nhu cầu của bạn.'
+      );
     }
 
     if (bestEquipment && /con|het|tinh trang|trang thai|muon|co san|bao tri|o dau|vi tri|han/.test(text)) {
@@ -269,20 +282,28 @@ const ChatBot: React.FC<ChatBotProps> = ({ apiUrl }) => {
       const location = bestEquipment.storage_location ? `\nVị trí lưu kho: **${bestEquipment.storage_location}**.` : '';
       const maxDays = bestEquipment.max_borrow_days ? `\nHạn mượn tối đa: **${bestEquipment.max_borrow_days} ngày**.` : '';
       const condition = bestEquipment.condition_status ? `\nTình trạng vật lý: **${bestEquipment.condition_status}**.` : '';
-      return `Tôi tìm thấy **${bestEquipment.name}**.\nHiện thiết bị ${statusText(bestEquipment.status)}, còn **${available}/${total}** chiếc.${location}${maxDays}${condition}\n\n${canBorrow ? 'Bạn có thể bấm **Mượn** trên thẻ thiết bị, chọn số lượng, ngày mượn/ngày trả rồi ký xác nhận.' : 'Thiết bị này chưa mượn được ngay. Nếu hết hàng, bạn có thể bấm **Đặt trước** để nhận thông báo khi có người trả.'}`;
+      return wrapReply(
+        `Mình tìm thấy **${bestEquipment.name}**. Hiện thiết bị ${statusText(bestEquipment.status)}, còn **${available}/${total}** chiếc.${location}${maxDays}${condition}`,
+        canBorrow
+          ? 'Bạn có thể bấm **Mượn** trên thẻ thiết bị, chọn số lượng, ngày mượn/ngày trả rồi ký xác nhận.'
+          : 'Thiết bị này chưa mượn được ngay. Nếu hết hàng, bạn có thể bấm **Đặt trước** để nhận thông báo khi có người trả.'
+      );
     }
 
     if (purposePicks.length) {
-      return `Với nhu cầu này, tôi gợi ý bạn mượn các món đang còn hàng sau:\n${purposePicks.map(formatEquipmentLine).join('\n')}\n\nNếu muốn gọn hơn, hãy mở tab **Combo Thiết Bị** và chọn combo còn trạng thái **Sẵn sàng**.`;
+      return wrapReply(
+        `Với nhu cầu này, mình gợi ý bạn mượn các món đang còn hàng sau:\n${purposePicks.map(formatEquipmentLine).join('\n')}`,
+        'Nếu muốn gọn hơn, hãy mở tab **Combo Thiết Bị** và chọn combo còn trạng thái **Sẵn sàng**.'
+      );
     }
 
     if (/combo|goi y|suggest|recommend|bo thiet bi|tron bo/.test(text)) {
       const availableCombos = activeCombos.filter((combo) => combo.available !== false).slice(0, 4);
       if (availableCombos.length) {
-        return `Các combo có thể mượn hiện tại:\n${availableCombos.map((combo) => {
+        return wrapReply(`Các combo có thể mượn hiện tại:\n${availableCombos.map((combo) => {
           const items = (combo.items || []).slice(0, 3).map((item) => item.equipment_name).filter(Boolean).join(', ');
           return `- **${combo.name}**${combo.description ? `: ${combo.description}` : ''}${items ? ` (${items})` : ''}`;
-        }).join('\n')}\n\nBạn có thể nói rõ mục đích như “quay livestream”, “hội thảo”, “chụp ảnh sản phẩm” để tôi lọc sát hơn.`;
+        }).join('\n')}`, 'Bạn có thể nói rõ mục đích như “quay livestream”, “hội thảo”, “chụp ảnh sản phẩm” để mình lọc sát hơn.');
       }
       return 'Hiện tôi chưa thấy combo khả dụng trong dữ liệu. Bạn vẫn có thể mượn lẻ theo danh sách thiết bị còn hàng.';
     }
@@ -292,15 +313,18 @@ const ChatBot: React.FC<ChatBotProps> = ({ apiUrl }) => {
         .filter((item) => (item.available_quantity || 0) > 0 && item.status === 'available')
         .slice(0, 8);
       if (!availableItems.length) return 'Tôi chưa thấy thiết bị nào còn hàng trong dữ liệu hiện tại. Bạn có thể thử tải lại trang hoặc liên hệ admin để kiểm tra kho.';
-      return `Một số thiết bị đang mượn được:\n${availableItems.map(formatEquipmentLine).join('\n')}\n\nBạn có thể hỏi trực tiếp tên món để tôi trả lời chi tiết hơn.`;
+      return wrapReply(
+        `Một số thiết bị đang mượn được:\n${availableItems.map(formatEquipmentLine).join('\n')}`,
+        'Bạn có thể hỏi trực tiếp tên món để mình trả lời chi tiết hơn.'
+      );
     }
 
     if (/het hang|dat truoc|queue|xep hang|cho hang/.test(text)) {
-      return 'Nếu thiết bị hết hàng, bạn bấm **Đặt trước** trên thẻ thiết bị. Khi thiết bị được trả lại, hệ thống sẽ gửi thông báo để bạn tạo yêu cầu mượn. Nếu bạn cần gấp, hãy hỏi tôi thiết bị cùng nhóm để chọn phương án thay thế.';
+      return 'Nếu thiết bị hết hàng, bạn bấm **Đặt trước** trên thẻ thiết bị. Khi thiết bị được trả lại, hệ thống sẽ gửi thông báo để bạn tạo yêu cầu mượn. Nếu bạn cần gấp, mình có thể gợi ý món thay thế gần nhất.';
     }
 
     if (/cach muon|dang ky|gui yeu cau|quy trinh|thu tuc/.test(text)) {
-      return 'Quy trình mượn: vào **Danh Sách Thiết Bị**, chọn món còn hàng, bấm **Mượn**, nhập số lượng/ngày mượn/ngày trả, ghi chú mục đích sử dụng, ký xác nhận và gửi yêu cầu. Sau đó bạn theo dõi trạng thái ở **Lịch Sử Mượn**.';
+      return 'Quy trình mượn khá gọn: vào **Danh Sách Thiết Bị**, chọn món còn hàng, bấm **Mượn**, nhập số lượng/ngày mượn/ngày trả, ghi chú mục đích sử dụng, ký xác nhận và gửi yêu cầu. Sau đó bạn theo dõi trạng thái ở **Lịch Sử Mượn**.';
     }
 
     if (/tra|hoan tra|return|qua han|tre han|phat/.test(text)) {
@@ -310,13 +334,19 @@ const ChatBot: React.FC<ChatBotProps> = ({ apiUrl }) => {
     if (/diem|uy tin|trust|rank|hang|gold|silver|bronze/.test(text)) {
       const score = activeTrust?.trust_score ?? 100;
       const rank = activeTrust?.trust_rank || (score >= 80 ? 'gold' : score >= 50 ? 'silver' : 'bronze');
-      return `Điểm uy tín hiện tại của bạn: **${score} điểm**, hạng **${rank}**.\n\nThông thường trả đúng hạn được cộng điểm, trả trễ hoặc làm hỏng thiết bị bị trừ điểm. Điểm cao giúp yêu cầu mượn dễ được ưu tiên duyệt hơn.`;
+      return wrapReply(
+        `Điểm uy tín hiện tại của bạn là **${score} điểm**, hạng **${rank}**. Thông thường trả đúng hạn được cộng điểm, trả trễ hoặc làm hỏng thiết bị sẽ bị trừ điểm.`,
+        'Điểm cao giúp yêu cầu mượn dễ được ưu tiên duyệt hơn.'
+      );
     }
 
     if (/yeu cau cua toi|lich su|trang thai don|phieu muon|da duyet|cho duyet/.test(text)) {
       const latest = activeBorrowHistory[0];
       if (!latest) return 'Tôi chưa thấy yêu cầu mượn nào của bạn trong dữ liệu hiện tại. Sau khi gửi yêu cầu, bạn có thể xem ở tab **Lịch Sử Mượn**.';
-      return `Yêu cầu gần nhất của bạn là **#${latest.id}**, trạng thái **${borrowStatusText(latest.status)}**.${latest.borrow_date ? `\nNgày mượn: ${latest.borrow_date}.` : ''}${latest.expected_return_date ? `\nNgày trả dự kiến: ${latest.expected_return_date}.` : ''}\n\nBạn có thể mở tab **Lịch Sử Mượn** để xem đầy đủ và xuất PDF nếu cần.`;
+      return wrapReply(
+        `Yêu cầu gần nhất của bạn là **#${latest.id}**, trạng thái **${borrowStatusText(latest.status)}**.${latest.borrow_date ? `\nNgày mượn: ${latest.borrow_date}.` : ''}${latest.expected_return_date ? `\nNgày trả dự kiến: ${latest.expected_return_date}.` : ''}`,
+        'Bạn có thể mở tab **Lịch Sử Mượn** để xem đầy đủ và xuất PDF nếu cần.'
+      );
     }
 
     if (/qr|ma qr|quet|scan/.test(text)) {
