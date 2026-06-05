@@ -1,5 +1,11 @@
 const sequelize = require('../config/database');
 const { ok, fail } = require('../utils/response');
+
+const equipmentNamesSql = () => {
+	const isMysql = sequelize.getDialect() === 'mysql';
+	const itemExpr = isMysql ? "CONCAT(e.name, ' (x', bi.quantity, ')')" : "e.name || ' (x' || bi.quantity || ')'";
+	return isMysql ? `GROUP_CONCAT(${itemExpr} SEPARATOR ', ')` : `GROUP_CONCAT(${itemExpr}, ', ')`;
+};
 const { getInsertedId, getAffectedRows } = require('../utils/sqlCompat');
 
 const isAdmin = (req) => req.user?.role === 'admin' || (Array.isArray(req.user?.roles) && req.user.roles.includes('admin'));
@@ -145,7 +151,7 @@ const getClubRequests = async (req, res) => {
 		const [rows] = await sequelize.query(
 			`SELECT br.id, br.user_id, br.borrow_date, br.expected_return_date, br.status, br.note,
 			        u.full_name, u.email, u.student_code,
-			        (SELECT GROUP_CONCAT(e.name || ' (x' || bi.quantity || ')', ', ')
+		        (SELECT ${equipmentNamesSql()}
 			         FROM borrow_items bi JOIN equipments e ON e.id = bi.equipment_id
 			         WHERE bi.request_id = br.id) AS equipment_names
 			 FROM borrow_requests br

@@ -25,6 +25,7 @@ const ticketRoutes = require('./routes/ticketRoutes');
 const signatureRoutes = require('./routes/signatureRoutes');
 const exportRoutes = require('./routes/exportRoutes');
 const adminEmailRoutes = require('./routes/adminEmailRoutes');
+const usersRoutes = require('./routes/usersRoutes');
 const comboRoutes = require('./routes/comboRoutes');
 const clubRoutes = require('./routes/clubRoutes');
 const adminRoutes = require('./routes/adminRoutes');
@@ -90,6 +91,7 @@ app.use('/api/penalties', penaltyRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/signatures', signatureRoutes);
 app.use('/api/export', exportRoutes);
+app.use('/api/users', usersRoutes);
 app.use('/api/combos', comboRoutes);
 app.use('/api/clubs', clubRoutes);
 app.use('/api/admin', adminRoutes);
@@ -120,8 +122,14 @@ if (require.main === module) {
 	const server = http.createServer(app);
 	socketManager.init(server);
 	scheduleOverdueJob();
-	server.listen(port, () => {
+	server.listen(port, '0.0.0.0', () => {
 		console.log(`API server running on http://localhost:${port}`);
+	}).on('error', (err) => {
+		if (err.code === 'EADDRINUSE') {
+			console.error(`Cổng ${port} đã bị sử dụng bởi một ứng dụng khác. Hãy kiểm tra lại.`);
+		} else {
+			console.error('Lỗi khi khởi động server:', err);
+		}
 	});
 }
 

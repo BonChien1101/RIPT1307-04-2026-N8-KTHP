@@ -502,7 +502,8 @@ const Student: React.FC = () => {
   };
 
   // ============ STATUS ============
-  const statusBadge = (status: string) => {
+  const statusBadge = (status: string, record?: BorrowRequest) => {
+    const isOverdue = status === 'overdue' || Number((record as any)?.is_overdue) === 1;
     const map: Record<string, JSX.Element> = {
       pending: <Badge status="processing" text="Chờ Phê Duyệt" />,
       approved: <Badge status="success" text="Đã Phê Duyệt" />,
@@ -511,6 +512,7 @@ const Student: React.FC = () => {
       returned: <Badge status="default" text="Đã Trả" />,
       overdue: <Badge color="red" text="Quá Hạn" />,
     };
+    if (isOverdue) return map.overdue;
     return map[status] || <Badge status="default" text={status} />;
   };
 
@@ -609,11 +611,11 @@ const Student: React.FC = () => {
   // ============ BORROW HISTORY COLUMNS ============
   const borrowHistoryColumns = [
     { title: 'Mã', dataIndex: 'id', key: 'id', width: 60, render: (id: number) => `#${id}` },
-    { title: 'Thiết Bị', dataIndex: 'equipment_names', key: 'equipment_names', ellipsis: true, render: (v: string) => v ? <Tooltip title={v}><span>{v}</span></Tooltip> : <span style={{color:'var(--muted)'}}>—</span> },
+    { title: 'Tên Thiết Bị', dataIndex: 'equipment_names', key: 'equipment_names', ellipsis: true, render: (v: string) => v ? <Tooltip title={v}><span>{v}</span></Tooltip> : <span style={{color:'var(--muted)'}}>—</span> },
     { title: 'Ngày Mượn', dataIndex: 'borrow_date', key: 'borrow_date' },
     { title: 'Ngày Trả Dự Kiến', dataIndex: 'expected_return_date', key: 'expected_return_date' },
     { title: 'Ngày Trả Thực Tế', dataIndex: 'actual_return_date', key: 'actual_return_date', render: (v: string) => v || '—' },
-    { title: 'Trạng Thái', dataIndex: 'status', key: 'status', render: statusBadge },
+    { title: 'Trạng Thái', dataIndex: 'status', key: 'status', render: (status: string, record: BorrowRequest) => statusBadge(status, record) },
     {
       title: 'Hành Động',
       key: 'action',

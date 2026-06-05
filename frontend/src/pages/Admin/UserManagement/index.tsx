@@ -1,7 +1,6 @@
 /// <reference path="../../../global.d.ts" />
 
 import React, { useEffect, useState } from 'react';
-import { useModel } from 'umi';
 import {
   Table,
   Button,
@@ -18,6 +17,7 @@ import {
   Row,
   Col,
   Statistic,
+  Descriptions,
 } from 'antd';
 import {
   UserAddOutlined,
@@ -33,21 +33,29 @@ interface User {
   id: number;
   name?: string;
   full_name?: string;
+  student_code?: string;
   email: string;
   role: string;
   status: 'active' | 'inactive';
   createdAt?: string;
   created_at?: string;
   updatedAt?: string;
+  updated_at?: string;
+  is_banned?: number;
+  trust_score?: number;
+  trust_rank?: string;
 }
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [form] = Form.useForm();
-  const { initialState, setInitialState } = useModel('@@initialState');
   const [formLoading, setFormLoading] = useState(false);
   const apiHost = (window as any).__API_URL__ || process.env.API_URL || window.location.origin;
   const apiUrl = `${apiHost}/api`;
@@ -97,15 +105,17 @@ const UserManagement: React.FC = () => {
         throw new Error('Failed to fetch users');
       }
 
-      const data = await response.json();
-      setUsers(Array.isArray(data) ? data : data.data || []);
+      const payload = await response.json();
+      const list = Array.isArray(payload) ? payload : Array.isArray(payload?.data) ? payload.data : [];
+      setAllUsers(list);
+      setUsers(list);
 
       // Calculate stats
       const stats = {
-        totalUsers: data.length,
-        adminCount: data.filter((u: User) => !isStudentRole(u.role)).length,
-        studentCount: data.filter((u: User) => isStudentRole(u.role)).length,
-        activeUsers: data.filter((u: User) => u.status === 'active').length,
+        totalUsers: list.length,
+        adminCount: list.filter((u: User) => !isStudentRole(u.role)).length,
+        studentCount: list.filter((u: User) => isStudentRole(u.role)).length,
+        activeUsers: list.filter((u: User) => u.status === 'active' || Number(u.is_banned) === 0).length,
       };
       setStats(stats);
     } catch (error) {
@@ -119,18 +129,40 @@ const UserManagement: React.FC = () => {
   const handleAddUser = () => {
     setEditingUser(null);
     form.resetFields();
+    form.setFieldsValue({ role: 'student', status: 'active' });
     setIsModalOpen(true);
   };
 
   const handleEditUser = (user: User) => {
     setEditingUser(user);
     form.setFieldsValue({
-      name: user.name,
+      full_name: user.full_name || user.name,
+      student_code: user.student_code,
       email: user.email,
       role: user.role,
       status: user.status,
     });
     setIsModalOpen(true);
+  };
+
+  const handleViewUser = async (user: User) => {
+    setSelectedUser(user);
+    setIsDetailOpen(true);
+    setDetailLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${apiUrl}/users/${user.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const payload = await response.json();
+        setSelectedUser(payload?.data || user);
+      }
+    } catch {
+      message.error('Lỗi tải chi tiết người dùng!');
+    } finally {
+      setDetailLoading(false);
+    }
   };
 
   const handleDeleteUser = async (userId: number) => {
@@ -168,16 +200,19 @@ const UserManagement: React.FC = () => {
       // For creating new user, include password
       const updatedFields = editingUser
         ? {
-            name: values.name,
+            full_name: values.full_name,
+            student_code: values.student_code || null,
             email: values.email,
             role: values.role,
             status: values.status,
           }
         : {
-            name: values.name,
+            full_name: values.full_name,
+            student_code: values.student_code || null,
             email: values.email,
             password: values.password,
             role: values.role,
+            status: values.status,
           };
 
       const response = await fetch(url, {
@@ -197,13 +232,18 @@ const UserManagement: React.FC = () => {
       message.success('Cập nhật thành công!');
 
       // Update header username and local storage if editing current user
-      if (editingUser && initialState?.user?.id === editingUser.id) {
-        const newUserData = { ...initialState.user, ...updatedFields };
-        localStorage.setItem('user', JSON.stringify(newUserData));
-        setInitialState((s: any) => ({ ...s, user: newUserData }));
-        
-        // Trigger a global event for components that might not use useModel
-        window.dispatchEvent(new CustomEvent('userUpdated', { detail: newUserData }));
+      if (editingUser) {
+        try {
+          const storedUserRaw = localStorage.getItem('user');
+          const storedUser = storedUserRaw ? JSON.parse(storedUserRaw) : null;
+          if (storedUser?.id === editingUser.id) {
+            const newUserData = { ...storedUser, ...updatedFields, name: updatedFields.full_name };
+            localStorage.setItem('user', JSON.stringify(newUserData));
+            window.dispatchEvent(new CustomEvent('userUpdated', { detail: newUserData }));
+          }
+        } catch {
+          // Ignore malformed local storage and continue.
+        }
       }
 
       setIsModalOpen(false);
@@ -220,9 +260,9 @@ const UserManagement: React.FC = () => {
   const columns = [
     {
       title: 'Tên',
-      dataIndex: 'name',
+      dataIndex: 'full_name',
       key: 'name',
-      render: (text: string) => <strong>{text}</strong>,
+      render: (text: string, record: User) => <strong>{text || record.name}</strong>,
     },
     {
       title: 'Email',
@@ -271,6 +311,9 @@ const UserManagement: React.FC = () => {
       key: 'actions',
       render: (_: any, record: User) => (
         <Space size="small">
+          <Tooltip title="Xem chi tiết">
+            <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewUser(record)} />
+          </Tooltip>
           <Tooltip title="Chỉnh sửa">
             <Button
               type="primary"
@@ -295,19 +338,22 @@ const UserManagement: React.FC = () => {
   return (
     <div className="user-management fade-in">
       <Card 
-        title={<div className="card-title" style={{ color: 'var(--text)' }}>Quản Lý Người Dùng</div>} 
+        title={<div className="card-title" style={{ color: 'var(--text)' }}>Quản Lý Tài Khoản</div>} 
         className="user-management-card"
         style={{ background: 'var(--card-bg)', borderColor: 'var(--border-color)' }}
       >
         <div className="um-header" style={{ marginBottom: 18 }}>
-          <div className="um-title" style={{ color: 'var(--text)' }}>Quản Lý Người Dùng</div>
+          <div className="um-title" style={{ color: 'var(--text)' }}>Quản Lý Tài Khoản</div>
           <div className="um-actions">
             <Input.Search
               placeholder="Tìm kiếm tên hoặc email"
               onSearch={(val) => {
                 const q = (val || '').toLowerCase().trim();
-                if (!q) return fetchUsers();
-                setUsers((prev) => prev.filter((u) => (u.name + ' ' + u.email).toLowerCase().includes(q)));
+                if (!q) {
+                  setUsers(allUsers);
+                  return;
+                }
+                setUsers(allUsers.filter((u) => `${u.full_name || u.name || ''} ${u.email}`.toLowerCase().includes(q)));
               }}
               style={{ width: 320, marginRight: 12 }}
               allowClear
@@ -382,6 +428,32 @@ const UserManagement: React.FC = () => {
         />
       </Card>
       <Modal
+        title="Chi Tiết Tài Khoản"
+        visible={isDetailOpen}
+        onCancel={() => {
+          setIsDetailOpen(false);
+          setSelectedUser(null);
+        }}
+        footer={null}
+        width={680}
+      >
+        {detailLoading ? (
+          <div style={{ padding: 24, textAlign: 'center' }}>Đang tải chi tiết...</div>
+        ) : (
+          <Descriptions bordered size="small" column={1}>
+            <Descriptions.Item label="Họ và tên">{selectedUser?.full_name || selectedUser?.name || '—'}</Descriptions.Item>
+            <Descriptions.Item label="Email">{selectedUser?.email || '—'}</Descriptions.Item>
+            <Descriptions.Item label="Mã sinh viên">{selectedUser?.student_code || '—'}</Descriptions.Item>
+            <Descriptions.Item label="Vai trò">{selectedUser?.role || '—'}</Descriptions.Item>
+            <Descriptions.Item label="Trạng thái">{selectedUser?.status || (Number(selectedUser?.is_banned) ? 'inactive' : 'active')}</Descriptions.Item>
+            <Descriptions.Item label="Điểm uy tín">{selectedUser?.trust_score ?? '—'}</Descriptions.Item>
+            <Descriptions.Item label="Hạng uy tín">{selectedUser?.trust_rank || '—'}</Descriptions.Item>
+            <Descriptions.Item label="Ngày tạo">{selectedUser?.created_at || selectedUser?.createdAt || '—'}</Descriptions.Item>
+            <Descriptions.Item label="Cập nhật gần nhất">{selectedUser?.updated_at || selectedUser?.updatedAt || '—'}</Descriptions.Item>
+          </Descriptions>
+        )}
+      </Modal>
+      <Modal
         title={editingUser ? 'Chỉnh Sửa Người Dùng' : 'Thêm Người Dùng'}
         visible={isModalOpen}
         onCancel={() => {
@@ -399,14 +471,21 @@ const UserManagement: React.FC = () => {
           autoComplete="off"
         >
           <Form.Item
-            label="Tên"
-            name="name"
+            label="Họ và tên"
+            name="full_name"
             rules={[
               { required: true, message: 'Vui lòng nhập tên!' },
               { min: 2, message: 'Tên phải có ít nhất 2 ký tự!' },
             ]}
           >
             <Input placeholder="Nhập tên người dùng" />
+          </Form.Item>
+
+          <Form.Item
+            label="Mã sinh viên"
+            name="student_code"
+          >
+            <Input placeholder="Nhập mã sinh viên (nếu có)" />
           </Form.Item>
 
           <Form.Item
@@ -443,25 +522,27 @@ const UserManagement: React.FC = () => {
               options={[
                 { label: 'Sinh Viên', value: 'student' },
                 { label: 'Quản Trị Viên', value: 'admin' },
+                { label: 'Super Admin', value: 'super_admin' },
+                { label: 'Admin Kho Thiết Bị', value: 'warehouse_admin' },
+                { label: 'Admin Duyệt Yêu Cầu', value: 'request_admin' },
+                { label: 'Nhân Viên Kho', value: 'warehouse_staff' },
               ]}
             />
           </Form.Item>
 
-          {editingUser && (
-            <Form.Item
-              label="Trạng Thái"
-              name="status"
-              rules={[{ required: true, message: 'Vui lòng chọn trạng thái!' }]}
-            >
-              <Select
-                placeholder="Chọn trạng thái"
-                options={[
-                  { label: 'Hoạt Động', value: 'active' },
-                  { label: 'Bị Khóa', value: 'inactive' },
-                ]}
-              />
-            </Form.Item>
-          )}
+          <Form.Item
+            label="Trạng Thái"
+            name="status"
+            rules={[{ required: true, message: 'Vui lòng chọn trạng thái!' }]}
+          >
+            <Select
+              placeholder="Chọn trạng thái"
+              options={[
+                { label: 'Hoạt Động', value: 'active' },
+                { label: 'Bị Khóa', value: 'inactive' },
+              ]}
+            />
+          </Form.Item>
 
           <Form.Item>
             <Button type="primary" htmlType="submit" block size="large" loading={formLoading}>

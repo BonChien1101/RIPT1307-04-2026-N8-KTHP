@@ -47,6 +47,32 @@ const pushUserNotification = async (userId, title, message, type = 'borrow') => 
 	}
 };
 
+const buildEquipmentNamesSql = (requestAlias = 'br') => {
+	const isMysql = sequelize.getDialect() === 'mysql';
+	const itemExpr = isMysql
+		? "CONCAT(e.name, ' (x', bi2.quantity, ')')"
+		: "e.name || ' (x' || bi2.quantity || ')'";
+	const aggregateExpr = isMysql
+		? `GROUP_CONCAT(${itemExpr} SEPARATOR ', ')`
+		: `GROUP_CONCAT(${itemExpr}, ', ')`;
+	return `(SELECT ${aggregateExpr}
+		     FROM borrow_items bi2 JOIN equipments e ON e.id = bi2.equipment_id
+		     WHERE bi2.request_id = ${requestAlias}.id) AS equipment_names`;
+};
+
+const buildOverdueSql = (requestAlias = 'br') => {
+	const isMysql = sequelize.getDialect() === 'mysql';
+	const todayExpr = isMysql ? 'CURDATE()' : "DATE('now')";
+	const overdueCondition = `${requestAlias}.status IN ('borrowed', 'overdue') AND ${requestAlias}.expected_return_date < ${todayExpr}`;
+	const daysExpr = isMysql
+		? `CASE WHEN ${overdueCondition} THEN DATEDIFF(${todayExpr}, ${requestAlias}.expected_return_date) ELSE 0 END`
+		: `CASE WHEN ${overdueCondition} THEN CAST(julianday('now') - julianday(${requestAlias}.expected_return_date) AS INTEGER) ELSE 0 END`;
+	return {
+		isOverdue: `CASE WHEN ${overdueCondition} THEN 1 ELSE 0 END AS is_overdue`,
+		daysOverdue: `${daysExpr} AS days_overdue`,
+	};
+};
+
 // Trạng thái:
 // pending -> approved | rejected
 // approved -> borrowed (ghi nhận đã lấy thiết bị, trừ kho)
@@ -257,9 +283,9 @@ const lichSuCuaToi = async (req, res) => {
 			`SELECT br.id, br.user_id, br.borrow_date, br.expected_return_date, br.actual_return_date,
 			        br.status, br.approved_by, br.note, br.created_at, br.updated_at,
 			        br.club_status, br.club_approved_at,
-			        (SELECT GROUP_CONCAT(e.name || ' (x' || bi2.quantity || ')', ', ')
-			         FROM borrow_items bi2 JOIN equipments e ON e.id = bi2.equipment_id
-			         WHERE bi2.request_id = br.id) AS equipment_names,
+		        ${buildEquipmentNamesSql('br')},
+		        ${buildOverdueSql('br').isOverdue},
+		        ${buildOverdueSql('br').daysOverdue},
 			        (SELECT json_group_array(json_object('equipment_id', bi3.equipment_id, 'equipment_name', e3.name, 'quantity', bi3.quantity))
 			         FROM borrow_items bi3 JOIN equipments e3 ON e3.id = bi3.equipment_id
 			         WHERE bi3.request_id = br.id) AS items_json
@@ -290,9 +316,9 @@ const danhSachChoDuyet = async (req, res) => {
 			        br.status, br.approved_by, br.note, br.created_at, br.updated_at,
 			        br.club_id, br.club_status, br.club_approved_by, br.club_approved_at,
 			        u.full_name, u.email, u.student_code, u.trust_score, u.trust_rank,
-			        (SELECT GROUP_CONCAT(e.name || ' (x' || bi2.quantity || ')', ', ')
-			         FROM borrow_items bi2 JOIN equipments e ON e.id = bi2.equipment_id
-			         WHERE bi2.request_id = br.id) AS equipment_names
+		        ${buildEquipmentNamesSql('br')},
+		        ${buildOverdueSql('br').isOverdue},
+		        ${buildOverdueSql('br').daysOverdue}
 			 FROM borrow_requests br
 			 LEFT JOIN users u ON u.id = br.user_id
 			 WHERE br.status = 'pending'
@@ -331,9 +357,9 @@ const danhSachAdmin = async (req, res) => {
 			        br.status, br.approved_by, br.note, br.created_at, br.updated_at,
 			        br.club_id, br.club_status, br.club_approved_by, br.club_approved_at,
 			        u.full_name, u.email, u.student_code, u.trust_score, u.trust_rank,
-			        (SELECT GROUP_CONCAT(e.name || ' (x' || bi2.quantity || ')', ', ')
-			         FROM borrow_items bi2 JOIN equipments e ON e.id = bi2.equipment_id
-			         WHERE bi2.request_id = br.id) AS equipment_names
+		        ${buildEquipmentNamesSql('br')},
+		        ${buildOverdueSql('br').isOverdue},
+		        ${buildOverdueSql('br').daysOverdue}
 			 FROM borrow_requests br
 			 LEFT JOIN users u ON u.id = br.user_id
 			 ${whereSql}
@@ -821,7 +847,7 @@ const triggerOverdueUpdate = async (req, res) => {
 		const [result] = await sequelize.query(
 			`UPDATE borrow_requests 
 			 SET status = 'overdue', updated_at = CURRENT_TIMESTAMP 
-			 WHERE status = 'borrowed' AND expected_return_date < CURDATE()`,
+			 WHERE status = 'borrowed' AND expected_return_date < ${getCurrentDateSql()}`,
 			{ type: QueryTypes.UPDATE }
 		);
 		return ok(res, { affectedRows: result.affectedRows }, 'Đã cập nhật trạng thái quá hạn');
@@ -836,18 +862,18 @@ const triggerOverdueUpdate = async (req, res) => {
 const getOverdueList = async (req, res) => {
 	try {
 		if (req.user && req.user.role !== 'admin') return fail(res, 'Không có quyền', 'FORBIDDEN', 403);
-		const today = new Date().toISOString().slice(0, 10);
 		const [rows] = await sequelize.query(
 			`SELECT br.id, br.user_id, br.borrow_date, br.expected_return_date, br.status,
 			        u.full_name, u.email, u.student_code, u.trust_score,
-			        DATEDIFF(CURDATE(), br.expected_return_date) as days_overdue,
-			        (SELECT GROUP_CONCAT(e.name, ', ')
+		        ${buildOverdueSql('br').daysOverdue},
+		        ${buildOverdueSql('br').isOverdue},
+		        (SELECT ${sequelize.getDialect() === 'mysql' ? "GROUP_CONCAT(e.name SEPARATOR ', ')" : "GROUP_CONCAT(e.name, ', ')"}
 			         FROM borrow_items bi2 JOIN equipments e ON e.id = bi2.equipment_id
 			         WHERE bi2.request_id = br.id) AS equipment_names
 			 FROM borrow_requests br LEFT JOIN users u ON u.id = br.user_id
-			 WHERE br.status IN ('borrowed', 'overdue') AND br.expected_return_date < ?
+		 WHERE br.status IN ('borrowed', 'overdue') AND br.expected_return_date < ${sequelize.getDialect() === 'mysql' ? 'CURDATE()' : "DATE('now')"}
 			 ORDER BY days_overdue DESC`,
-			{ replacements: [today, today] }
+			{ replacements: [] }
 		);
 		return ok(res, rows, 'OK');
 	} catch (e) {
