@@ -152,12 +152,9 @@
 /* Hero Card */
 .dashboard-hero {
   border: none !important;
-  color: #fff;
-  background:
-    radial-gradient(circle at top right, rgba(195,155,89,0.25) 0%, transparent 40%),
-    radial-gradient(circle at bottom left, rgba(122,90,248,0.15) 0%, transparent 40%),
-    linear-gradient(135deg, #06101e 0%, #0f1b2d 50%, #172843 100%);
-  box-shadow: 0 24px 60px rgba(7, 15, 28, 0.30) !important;
+  color: var(--text); /* Changed from #fff to var(--text) */
+  background: var(--card-bg); /* Changed from gradient to card-bg */
+  box-shadow: var(--surface-shadow) !important;
   overflow: hidden;
   position: relative;
   border-radius: 20px !important;
@@ -169,7 +166,7 @@
     right: -20%;
     width: 500px;
     height: 500px;
-    background: radial-gradient(circle, rgba(195,155,89,0.12) 0%, transparent 70%);
+    background: radial-gradient(circle, var(--accent-soft) 0%, transparent 70%); /* Use variable */
     border-radius: 50%;
     pointer-events: none;
   }
@@ -191,6 +188,46 @@
       z-index: 1;
     }
   }
+}
+
+[data-theme="dark"] .dashboard-hero {
+  color: var(--text);
+  background:
+    radial-gradient(circle at top right, rgba(195,155,89,0.15) 0%, transparent 40%),
+    radial-gradient(circle at bottom left, rgba(122,90,248,0.10) 0%, transparent 40%),
+    linear-gradient(135deg, #0f1b2d 0%, #161b22 100%);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.30) !important;
+
+  &::before {
+     background: radial-gradient(circle, rgba(195,155,89,0.12) 0%, transparent 70%);
+  }
+}
+
+[data-theme="dark"] .dashboard-hero__content h2,
+[data-theme="dark"] .dashboard-hero__content p,
+[data-theme="dark"] .dashboard-hero__eyebrow {
+  color: #fff;
+}
+
+[data-theme="dark"] .dashboard-hero__content p {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+[data-theme="dark"] .dashboard-hero__eyebrow {
+  color: rgba(255, 235, 200, 0.80);
+}
+
+[data-theme="dark"] .dashboard-hero__ring {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+[data-theme="dark"] .dashboard-hero__ring-label strong {
+  color: #f4d39c;
+}
+
+[data-theme="dark"] .dashboard-hero__ring-label span {
+  color: rgba(255, 255, 255, 0.76);
 }
 
 /* ============ METRIC CARDS ============ */
@@ -284,13 +321,13 @@
   font-size: 11px;
   letter-spacing: 0.10em;
   text-transform: uppercase;
-  color: rgba(255, 235, 200, 0.80);
+  color: var(--text-secondary); /* Changed */
   margin-bottom: 8px;
 }
 
 .dashboard-hero__content {
   h2 {
-    color: #fff;
+    color: var(--text); /* Changed */
     font-size: 30px;
     font-weight: 800;
     line-height: 1.2;
@@ -300,7 +337,7 @@
 
   p {
     max-width: 600px;
-    color: rgba(255, 255, 255, 0.82);
+    color: var(--text-secondary); /* Changed */
     font-size: 15px;
     line-height: 1.7;
     margin-bottom: 20px;
@@ -314,8 +351,8 @@
   gap: 20px;
   padding: 16px 20px;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: var(--muted-light); /* Changed */
+  border: 1px solid var(--border-color); /* Changed */
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   flex-wrap: wrap;
 }
@@ -329,12 +366,12 @@
   strong {
     font-size: 26px;
     line-height: 1;
-    color: #f4d39c;
+    color: var(--accent-start); /* Changed */
   }
 
   span {
     font-size: 12px;
-    color: rgba(255, 255, 255, 0.76);
+    color: var(--text-secondary); /* Changed */
   }
 }
 
