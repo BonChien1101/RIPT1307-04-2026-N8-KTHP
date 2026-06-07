@@ -68,6 +68,7 @@ const sendEmail = async ({ to, subject, html, text, meta }) => {
 		return { skipped: true };
 	}
 
+
 	const transporter = await getTransporter();
 
 	const info = await transporter.sendMail({
