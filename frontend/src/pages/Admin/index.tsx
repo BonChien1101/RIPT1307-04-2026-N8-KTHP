@@ -79,7 +79,7 @@ const AdminEmailWarningPanel: React.FC<{ apiUrl: string; onUnauthorized: () => v
         setBorrowed(data?.data || []);
         return;
       }
-      // eslint-disable-next-line no-console
+
       console.error('[AdminEmailWarningPanel.fetchBorrowed] API error', res.status, await res.text());
     } catch {}
     setBorrowedLoading(false);
@@ -113,13 +113,12 @@ const AdminEmailWarningPanel: React.FC<{ apiUrl: string; onUnauthorized: () => v
       let detail = '';
       try {
         const data = await res.json();
-        // eslint-disable-next-line no-console
         console.error('[AdminEmailWarningPanel] API error', res.status, data);
         detail = data?.message || data?.error || data?.code || '';
       } catch {
         try {
           const text = await res.text();
-          // eslint-disable-next-line no-console
+     
           console.error('[AdminEmailWarningPanel] API error', res.status, text);
           detail = text;
         } catch {}
@@ -137,7 +136,7 @@ const AdminEmailWarningPanel: React.FC<{ apiUrl: string; onUnauthorized: () => v
   };
 
   return (
-    <Card title="Gửi email cảnh báo (thủ công)" style={{ marginTop: 12 }}>
+    <Card title="Gửi email cảnh báo" style={{ marginTop: 12 }}>
       <Form form={form} layout="vertical">
         <Form.Item
           label="Chọn người đang mượn / phiếu mượn"

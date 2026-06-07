@@ -129,7 +129,7 @@ const run = async () => {
 		`INSERT INTO users (full_name, student_code, email, password, role)
 		 VALUES
 		  ('Admin', 'AD000', 'admin@example.com', '123456', 'admin'),
-		  ('Nguyen Van A', 'B20DCCN001', 'a@example.com', '123456', 'student'),
+		  ('Trương Công Chiến', 'B24DCCC040', 'chiensenpaiii2006@gmail.com', '123456', 'student'),
 		  ('Tran Thi B', 'B20DCCN002', 'b@example.com', '123456', 'student')`
 	);
 	console.log('Đã chèn users:', userInsert?.changes ?? 'OK');

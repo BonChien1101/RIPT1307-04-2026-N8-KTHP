@@ -11,11 +11,11 @@ export const resolveApiHost = () => {
   if (runtimeApiUrl) return runtimeApiUrl;
 
   if (isLocalHost()) {
-    return 'http://localhost:5000';
+    return 'https://ript1307-04-2026-n8-kthp.onrender.com';
   }
 
   if (envApiUrl) return envApiUrl;
-  return typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000';
+  return typeof window !== 'undefined' ? window.location.origin : 'https://ript1307-04-2026-n8-kthp.onrender.com';
 };
 
 export const getApiUrl = () => `${resolveApiHost()}/api`;
