@@ -67,7 +67,7 @@ const AdminEmailWarningPanel: React.FC<{ apiUrl: string; onUnauthorized: () => v
     setBorrowedLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/admin/borrowed`, {
+      const res = await fetch(`${apiUrl}/admin/emails/borrowed`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.status === 401) {
