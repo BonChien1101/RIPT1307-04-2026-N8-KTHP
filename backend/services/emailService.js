@@ -64,6 +64,7 @@ const sendEmail = async ({ to, subject, html, text, meta }) => {
 
 	// console.log('1. before transporter');
 
+
 	const transporter = await getTransporter();
 
 	// console.log('2. before verify');
