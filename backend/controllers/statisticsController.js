@@ -150,11 +150,11 @@ const monthlyTrend = async (req, res) => {
 const clubStats = async (req, res) => {
 	try {
 		const [rows] = await sequelize.query(
-			`SELECT u.club, COUNT(br.id) as tong_muon
+			`SELECT c.id, c.name, COUNT(br.id) as tong_muon
 			 FROM borrow_requests br
 			 JOIN users u ON u.id = br.user_id
-			 WHERE u.club IS NOT NULL AND u.club != ''
-			 GROUP BY u.club
+			 JOIN clubs c ON c.id = u.club_id
+			 GROUP BY c.id, c.name
 			 ORDER BY tong_muon DESC
 			 LIMIT 20`
 		);

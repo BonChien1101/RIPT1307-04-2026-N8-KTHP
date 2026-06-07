@@ -1,6 +1,11 @@
 const sequelize = require('../config/database');
 const { ok, fail } = require('../utils/response');
 
+const equipmentAggSql = () => (sequelize.getDialect() === 'mysql'
+	? "GROUP_CONCAT(e.name SEPARATOR ', ')"
+	: "GROUP_CONCAT(e.name, ', ')"
+);
+
 /**
  * GET /api/admin/borrowed
  * Admin-only: list active borrowed requests with borrower info for manual warning emails.
@@ -17,7 +22,7 @@ const listBorrowed = async (req, res) => {
 			        br.status,
 			        u.full_name,
 			        u.email,
-			        GROUP_CONCAT(e.name, ', ') as equipments
+		        ${equipmentAggSql()} as equipments
 			 FROM borrow_requests br
 			 JOIN users u ON u.id = br.user_id
 			 LEFT JOIN borrow_items bi ON bi.request_id = br.id

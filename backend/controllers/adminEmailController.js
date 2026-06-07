@@ -49,6 +49,7 @@ const sendBorrowWarning = async (req, res) => {
 
     return ok(res, { sent: !r?.skipped, previewUrl: r?.previewUrl }, 'Đã gửi email cảnh báo');
   } catch (e) {
+      console.error('SEND MAIL ERROR:', e);
     return fail(res, 'Lỗi server khi gửi email', 'INTERNAL_ERROR', 500);
   }
 };

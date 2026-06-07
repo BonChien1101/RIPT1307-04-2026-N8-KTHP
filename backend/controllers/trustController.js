@@ -66,7 +66,11 @@ const getUserTrust = async (req, res) => {
     if (!userId) return fail(res, 'ID không hợp lệ', 'VALIDATION_ERROR', 400);
 
     const [rows] = await sequelize.query(
-      'SELECT id, full_name, email, trust_score, trust_rank, is_banned, banned_until, club FROM users WHERE id = ? LIMIT 1',
+      `SELECT u.id, u.full_name, u.email, u.trust_score, u.trust_rank, u.is_banned, u.banned_until,
+              u.club_id, c.name AS club_name
+       FROM users u
+       LEFT JOIN clubs c ON c.id = u.club_id
+       WHERE u.id = ? LIMIT 1`,
       { replacements: [userId] }
     );
     if (!rows.length) return fail(res, 'Không tìm thấy người dùng', 'NOT_FOUND', 404);
@@ -82,8 +86,11 @@ const getAllTrust = async (req, res) => {
     if (req.user?.role !== 'admin') return fail(res, 'Không có quyền', 'FORBIDDEN', 403);
 
     const [rows] = await sequelize.query(
-      `SELECT id, full_name, email, student_code, trust_score, trust_rank, is_banned, banned_until, club
-       FROM users ORDER BY trust_score DESC`
+      `SELECT u.id, u.full_name, u.email, u.student_code, u.trust_score, u.trust_rank, u.is_banned,
+               u.banned_until, u.club_id, c.name AS club_name
+         FROM users u
+         LEFT JOIN clubs c ON c.id = u.club_id
+         ORDER BY COALESCE(u.trust_score, 100) DESC, u.id ASC`
     );
 
     return ok(res, rows, 'OK');

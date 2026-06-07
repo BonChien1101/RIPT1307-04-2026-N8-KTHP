@@ -50,12 +50,22 @@ const sendEmail = async ({ to, subject, html, text, meta }) => {
 	if (!subject) throw new Error('EMAIL_SUBJECT_REQUIRED');
 
 	if (!isEmailEnabled()) {
-		// eslint-disable-next-line no-console
 		console.log('[emailService.disabled] skip sending email', { to, subject, meta });
 		return { skipped: true };
 	}
 
+	console.log('1. before transporter');
+
 	const transporter = await getTransporter();
+
+	console.log('2. before verify');
+
+	await transporter.verify();
+
+	console.log('3. after verify');
+
+	console.log('4. before send');
+
 	const info = await transporter.sendMail({
 		from: getFrom(),
 		to,
@@ -64,11 +74,9 @@ const sendEmail = async ({ to, subject, html, text, meta }) => {
 		html,
 	});
 
+	console.log('5. after send');
+
 	const previewUrl = nodemailer.getTestMessageUrl(info);
-	if (previewUrl) {
-		// eslint-disable-next-line no-console
-		console.log('[emailService.previewUrl]', previewUrl);
-	}
 
 	return { messageId: info.messageId, previewUrl };
 };

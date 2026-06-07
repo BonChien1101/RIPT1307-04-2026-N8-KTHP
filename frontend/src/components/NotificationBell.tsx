@@ -247,8 +247,8 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ userId, apiUrl }) =
     <Popover
       content={content}
       trigger="click"
-      open={open}
-      onOpenChange={setOpen}
+      visible={open}
+      onVisibleChange={setOpen}
       placement="bottomRight"
       overlayStyle={{ padding: 0 }}
       overlayInnerStyle={{ padding: 0, borderRadius: 16, overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.15)' }}

@@ -87,6 +87,14 @@ export function getRoutes() {
         "exact": true
       },
       {
+        "path": "/club-leader",
+        "name": "Trưởng CLB",
+        "icon": "TeamOutlined",
+        "component": dynamic({ loader: () => import(/* webpackChunkName: 'p__ClubLeader' */'D:/BTLCK_NHOM8/frontend/src/pages/ClubLeader'), loading: LoadingComponent}),
+        "layout": false,
+        "exact": true
+      },
+      {
         "path": "/admin",
         "name": "Quản trị viên",
         "icon": "CrownOutlined",

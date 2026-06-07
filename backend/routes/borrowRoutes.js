@@ -18,5 +18,6 @@ router.patch('/borrow-requests/:id/reject', authMiddleware, requireRole('admin')
 router.patch('/borrow-requests/:id/mark-borrowed', authMiddleware, requireRole('admin'), borrowController.ghiNhanDaMuon);
 router.patch('/borrow-requests/:id/mark-returned', authMiddleware, requireRole('admin'), borrowController.ghiNhanDaTra);
 router.post('/borrow-requests/:id/smart-approve', authMiddleware, requireRole('admin'), borrowController.smartApprove);
+router.post('/borrow-requests/:id/club-approve', authMiddleware, requireRole('club_leader', 'admin'), borrowController.clubApprove);
 
 module.exports = router;

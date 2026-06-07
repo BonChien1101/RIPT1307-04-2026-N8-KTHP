@@ -5,4 +5,5 @@ export default {
   'menu.Đăng nhập': 'Đăng nhập',
   'menu.Sinh viên': 'Sinh viên',
   'menu.Quản trị viên': 'Quản trị viên',
+  'menu.Trưởng CLB': 'Trưởng CLB',
 };
