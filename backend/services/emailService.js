@@ -54,17 +54,17 @@ const sendEmail = async ({ to, subject, html, text, meta }) => {
 		return { skipped: true };
 	}
 
-	console.log('1. before transporter');
+	//console.log('1. before transporter');
 
 	const transporter = await getTransporter();
 
-	console.log('2. before verify');
+	// console.log('2. before verify');
 
-	await transporter.verify();
+	// await transporter.verify();
 
-	console.log('3. after verify');
+	// console.log('3. after verify');
 
-	console.log('4. before send');
+	// console.log('4. before send');
 
 	const info = await transporter.sendMail({
 		from: getFrom(),
