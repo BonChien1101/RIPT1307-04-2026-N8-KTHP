@@ -18,6 +18,7 @@ const getTransporter = async () => {
                 user: process.env.SMTP_USER,
                 pass: process.env.SMTP_PASS,
             },
+			family: 'IPv4',
             connectionTimeout: 15000,
             socketTimeout: 15000,
         });
@@ -38,6 +39,7 @@ const getTransporter = async () => {
             tls: {
                 rejectUnauthorized: false, 
             },
+			family: 'IPv4',
             connectionTimeout: 15000,
             socketTimeout: 15000,
         });
