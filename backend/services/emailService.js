@@ -11,7 +11,7 @@ const isEmailEnabled = () => {
 
 const getFrom = () => {
     // Resend mặc định cho một domain chạy thử là onboarding@resend.dev
-    return process.env.EMAIL_FROM || 'onboarding@resend.dev';
+   	return 'BorrowX <onboarding@resend.dev>';
 };
 
 const sendEmail = async ({ to, subject, html, text, meta }) => {
