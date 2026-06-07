@@ -23,6 +23,7 @@ const sendEmail = async ({ to, subject, html, text, meta }) => {
         return { skipped: true };
     }
 
+
     try {
         // Gửi qua HTTP POST API - Bỏ qua hoàn toàn tầng SMTP bị chặn của Render
         const response = await axios.post('https://api.resend.com/emails', {
