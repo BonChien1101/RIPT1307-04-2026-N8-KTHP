@@ -36,7 +36,7 @@
     "test:component": "umi test ./src/components",
     "serve": "umi-serve",
     "tsc": "tsc --noEmit",
-    "prepare": "husky install",
+    "prepare": "husky install || true",
     "sentry:sourcemaps": ""
   },
   "lint-staged": {
