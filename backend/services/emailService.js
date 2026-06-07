@@ -102,6 +102,14 @@ const templates = {
     `;
         return { subject: `[Cảnh báo] ${equipmentName} (#${requestId})`, html: wrapHtml(title, body) };
     },
+	forgotPassword: (otp) => { // Chỉ nhận otp
+		const title = 'Mã xác thực khôi phục mật khẩu';
+		const body = `
+			<p>Chào bạn,</p>
+			<p>Bạn vừa yêu cầu đặt lại mật khẩu. Mã OTP của bạn là: <strong>${otp}</strong></p>
+		`;
+		return { subject: `[BorrowX] Mã xác thực OTP`, html: wrapHtml(title, body) };
+	},
 };
 
 module.exports = {

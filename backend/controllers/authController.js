@@ -228,12 +228,7 @@ const yeuCauOtp = async (req, res) => {
             { replacements: [otpCode, otpExpires, nguoiDung.id] }
         );
 
-
-        const template = emailService.templates.forgotPassword({
-            fullName: nguoiDung.full_name,
-            otpCode: otpCode
-        });
-
+		const template = emailService.templates.forgotPassword(otpCode);
         
         await emailService.sendEmail({
             to: email.trim(),
