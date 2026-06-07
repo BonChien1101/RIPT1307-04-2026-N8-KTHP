@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS users (
     password VARCHAR(255) NOT NULL,
     role ENUM('admin', 'student')
     NOT NULL DEFAULT 'student',
+    reset_password_otp VARCHAR(10) DEFAULT NULL,
+    reset_password_expires TIMESTAMP NULL DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     ON UPDATE CURRENT_TIMESTAMP,

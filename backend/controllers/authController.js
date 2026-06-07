@@ -1,3 +1,4 @@
+const emailService = require('../services/emailService');
 const sequelize = require('../config/database');
 const { ok, fail } = require('../utils/response');
 const { signToken } = require('../utils/jwt');
@@ -204,42 +205,95 @@ const dangKy = async (req, res) => {
 	}
 };
 
+const yeuCauOtp = async (req, res) => {
+    try {
+        const { email } = req.body || {};
+        if (!email) {
+            return fail(res, 'Vui lòng nhập email', 'VALIDATION_ERROR', 400);
+        }
+        const [rows] = await sequelize.query('SELECT id, full_name FROM users WHERE email = ? LIMIT 1', {
+            replacements: [email.trim()],
+        });
+        const nguoiDung = rows?.[0];
+        if (!nguoiDung) {
+            return fail(res, 'Email không tồn tại trong hệ thống', 'NOT_FOUND', 404);
+        }
+
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpires = new Date(Date.now() + 5 * 60 * 1000); 
+
+
+        await sequelize.query(
+            'UPDATE users SET reset_password_otp = ?, reset_password_expires = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            { replacements: [otpCode, otpExpires, nguoiDung.id] }
+        );
+
+
+        const template = emailService.templates.forgotPassword({
+            fullName: nguoiDung.full_name,
+            otpCode: otpCode
+        });
+
+        
+        await emailService.sendEmail({
+            to: email.trim(),
+            subject: template.subject,
+            html: template.html
+        });
+
+        return ok(res, null, 'Mã OTP xác thực đã được gửi về email của bạn');
+    } catch (e) {
+        console.error('🔥 Lỗi yeuCauOtp:', e);
+        if (isDbConnectionError(e)) {
+            return fail(res, 'Không kết nối được CSDL cục bộ.', 'DB_CONNECTION_ERROR', 503);
+        }
+        return fail(res, 'Lỗi hệ thống khi gửi mã OTP', 'INTERNAL_ERROR', 500);
+    }
+};
+
+
 const resetMatKhau = async (req, res) => {
-	try {
-		const { email, new_password: matKhauMoi, password: matKhauMoiLegacy } = req.body || {};
-		const passwordToUse = matKhauMoi || matKhauMoiLegacy;
-		if (!email || !passwordToUse) {
-			return fail(
-				res,
-				'Vui lòng nhập email và mật khẩu mới',
-				'VALIDATION_ERROR',
-				400,
-				[
-					...(!email ? [{ field: 'email', message: 'Email là bắt buộc' }] : []),
-					...(!passwordToUse ? [{ field: 'new_password', message: 'Mật khẩu mới là bắt buộc' }] : []),
-				]
-			);
-		}
+    try {
+        const { email, otp_code: otpCode, new_password: matKhauMoi } = req.body || {};
+        
+        if (!email || !otpCode || !matKhauMoi) {
+            return fail(res, 'Vui lòng điền đầy đủ email, mã OTP và mật khẩu mới', 'VALIDATION_ERROR', 400, [
+                ...(!email ? [{ field: 'email', message: 'Email là bắt buộc' }] : []),
+                ...(!otpCode ? [{ field: 'otp_code', message: 'Mã OTP là bắt buộc' }] : []),
+                ...(!matKhauMoi ? [{ field: 'new_password', message: 'Mật khẩu mới là bắt buộc' }] : []),
+            ]);
+        }
 
-		const [rows] = await sequelize.query('SELECT id FROM users WHERE email = ? LIMIT 1', {
-			replacements: [email],
-		});
-		const nguoiDung = rows?.[0];
-		if (!nguoiDung) {
-			return fail(res, 'Email không tồn tại', 'NOT_FOUND', 404);
-		}
+        
+        const [rows] = await sequelize.query(
+            `SELECT id FROM users 
+             WHERE email = ? AND reset_password_otp = ? AND reset_password_expires > CURRENT_TIMESTAMP 
+             LIMIT 1`,
+            { replacements: [email.trim(), String(otpCode).trim()] }
+        );
+        const nguoiDung = rows?.[0];
 
-		await sequelize.query('UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE email = ?', {
-			replacements: [passwordToUse, email],
-		});
+       
+        if (!nguoiDung) {
+            return fail(res, 'Mã OTP không chính xác hoặc đã hết hạn sử dụng', 'INVALID_OR_EXPIRED_OTP', 400);
+        }
 
-		return ok(res, null, 'Đặt lại mật khẩu thành công');
-	} catch (e) {
-		if (isDbConnectionError(e)) {
-			return fail(res, 'Không kết nối được CSDL cục bộ. Hãy chạy npm run db:init.', 'DB_CONNECTION_ERROR', 503);
-		}
-		return fail(res, 'Lỗi đặt lại mật khẩu', 'INTERNAL_ERROR', 500);
-	}
+        
+        await sequelize.query(
+            `UPDATE users 
+             SET password = ?, reset_password_otp = NULL, reset_password_expires = NULL, updated_at = CURRENT_TIMESTAMP 
+             WHERE id = ?`,
+            { replacements: [matKhauMoi, nguoiDung.id] }
+        );
+
+        return ok(res, null, 'Đặt lại mật khẩu mới thành công!');
+    } catch (e) {
+        console.error('🔥 Lỗi resetMatKhau:', e);
+        if (isDbConnectionError(e)) {
+            return fail(res, 'Không kết nối được CSDL cục bộ.', 'DB_CONNECTION_ERROR', 503);
+        }
+        return fail(res, 'Lỗi hệ thống khi đặt lại mật khẩu', 'INTERNAL_ERROR', 500);
+    }
 };
 
 const capNhatProfile = async (req, res) => {
@@ -456,6 +510,6 @@ const xoaNguoiDung = async (req, res) => {
 };
 
 module.exports = { 
-	dangNhap, thongTinToi, dangKy, resetMatKhau, capNhatProfile,
-	taoNguoiDung, layDanhSachNguoiDung, layChiTietNguoiDung, capNhatNguoiDung, xoaNguoiDung 
+    dangNhap, thongTinToi, dangKy, yeuCauOtp, resetMatKhau, capNhatProfile, 
+    taoNguoiDung, layDanhSachNguoiDung, layChiTietNguoiDung, capNhatNguoiDung, xoaNguoiDung 
 };

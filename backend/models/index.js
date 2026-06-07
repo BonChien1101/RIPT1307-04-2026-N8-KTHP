@@ -11,6 +11,18 @@ const User = sequelize.define(
     email: { type: DataTypes.STRING(100), allowNull: false, unique: true },
     password: { type: DataTypes.STRING(255), allowNull: false },
     role: { type: DataTypes.ENUM('admin', 'student'), allowNull: false, defaultValue: 'student' },
+    
+    reset_password_otp: { 
+      type: DataTypes.STRING(10), 
+      allowNull: true, 
+      defaultValue: null 
+    },
+    reset_password_expires: { 
+      type: DataTypes.DATE, 
+      allowNull: true, 
+      defaultValue: null 
+    },
+
     created_at: { type: DataTypes.DATE, allowNull: true },
     updated_at: { type: DataTypes.DATE, allowNull: true },
   },
@@ -19,7 +31,6 @@ const User = sequelize.define(
     timestamps: false,
   }
 );
-
 const Category = sequelize.define(
   'Category',
   {
