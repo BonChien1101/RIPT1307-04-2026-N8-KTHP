@@ -94,8 +94,9 @@ app.use('/api/export', exportRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/combos', comboRoutes);
 app.use('/api/clubs', clubRoutes);
+app.use('/api/admin/emails', adminEmailRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/admin', adminEmailRoutes);
+
 
 app.use((req, res) => {
 	return fail(res, 'Không tìm thấy API', 'NOT_FOUND', 404);
