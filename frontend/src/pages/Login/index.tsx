@@ -26,7 +26,7 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('login');
   const apiUrl = getApiUrl();
-
+  const [forgotStep, setForgotStep] = useState(1);
   const applyLoginResult = (loginData: any) => {
     const token = loginData?.token;
     const user = loginData?.user;
@@ -99,26 +99,46 @@ const Login: React.FC = () => {
   };
 
   const handleResetPassword = async (values: any) => {
-    setLoading(true);
-    try {
+  setLoading(true);
+  try {
+    if (forgotStep === 1) {
+      const response = await fetch(`${apiUrl}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: values.email }),
+      });
+      if (response.ok) {
+        message.success('Mã OTP đã được gửi về email của bạn!');
+        setForgotStep(2);
+      } else {
+        await showApiError(response, 'Không thể gửi mã OTP!');
+      }
+    } else {
+
       const response = await fetch(`${apiUrl}/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: values.email, new_password: values.new_password }),
+        body: JSON.stringify({ 
+          email: values.email, 
+          otp_code: values.otp_code, 
+          new_password: values.new_password 
+        }),
       });
       if (response.ok) {
         message.success('Đặt lại mật khẩu thành công! Hãy đăng nhập lại.');
         resetForm.resetFields();
+        setForgotStep(1);
         setActiveTab('login');
       } else {
-        await showApiError(response, 'Không thể đặt lại mật khẩu!');
+        await showApiError(response, 'Mã OTP không đúng hoặc đã hết hạn!');
       }
-    } catch {
-      message.error('Lỗi kết nối server!');
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch {
+    message.error('Lỗi kết nối server!');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const features = [
     { icon: <ThunderboltOutlined />, text: 'Mượn thiết bị siêu nhanh – chỉ 1 click' },
@@ -313,46 +333,47 @@ const Login: React.FC = () => {
                 <Tabs.TabPane tab="Quên Mật Khẩu" key="forgot">
                   <Form form={resetForm} layout="vertical" onFinish={handleResetPassword} autoComplete="off">
                     <Form.Item
-                      label="Email đã đăng ký"
+                      label="Email"
                       name="email"
-                      rules={[
-                        { required: true, message: 'Vui lòng nhập email!' },
-                        { type: 'email', message: 'Email không hợp lệ!' },
-                      ]}
+                      rules={[{ required: true, message: 'Vui lòng nhập email!' }, { type: 'email' }]}
                     >
-                      <Input prefix={<MailOutlined />} placeholder="Email của bạn" size="large" id="forgot-email" />
+                      <Input 
+                        prefix={<MailOutlined />} 
+                        placeholder="Email của bạn" 
+                        size="large" 
+                        disabled={forgotStep === 2} // Khóa email ở bước 2
+                      />
                     </Form.Item>
 
-                    <Form.Item
-                      label="Mật khẩu mới"
-                      name="new_password"
-                      rules={[
-                        { required: true, message: 'Vui lòng nhập mật khẩu mới!' },
-                        { min: 6, message: 'Mật khẩu tối thiểu 6 ký tự!' },
-                      ]}
-                    >
-                      <Input.Password prefix={<KeyOutlined />} placeholder="Mật khẩu mới" size="large" id="forgot-newpassword" />
-                    </Form.Item>
+                    {forgotStep === 2 && (
+                      <>
+                        <Form.Item
+                          label="Mã OTP"
+                          name="otp_code"
+                          rules={[{ required: true, message: 'Vui lòng nhập mã OTP!' }]}
+                        >
+                          <Input prefix={<SafetyOutlined />} placeholder="Nhập 6 số OTP" size="large" />
+                        </Form.Item>
+                        
+                        <Form.Item
+                          label="Mật khẩu mới"
+                          name="new_password"
+                          rules={[{ required: true, message: 'Nhập mật khẩu mới!' }, { min: 6 }]}
+                        >
+                          <Input.Password prefix={<KeyOutlined />} placeholder="Mật khẩu mới" size="large" />
+                        </Form.Item>
+                      </>
+                    )}
 
-                    <Divider className="login-divider">
-                      <span className="login-divider__text">
-                        <CustomerServiceOutlined /> Hỗ trợ nhanh
-                      </span>
-                    </Divider>
-
-                    <Form.Item style={{ marginBottom: 0 }}>
-                      <Button
-                        type="primary"
-                        htmlType="submit"
-                        size="large"
-                        block
-                        loading={loading}
-                        className="login-button"
-                        id="forgot-submit-btn"
-                      >
-                        {loading ? 'Đang xử lý...' : 'Đặt Lại Mật Khẩu →'}
+                    <Button type="primary" htmlType="submit" size="large" block loading={loading}>
+                      {forgotStep === 1 ? 'Gửi mã OTP →' : 'Đặt Lại Mật Khẩu →'}
+                    </Button>
+                    
+                    {forgotStep === 2 && (
+                      <Button type="link" onClick={() => setForgotStep(1)} block style={{ marginTop: 10 }}>
+                        Quay lại
                       </Button>
-                    </Form.Item>
+                    )}
                   </Form>
                 </Tabs.TabPane>
               </Tabs>
