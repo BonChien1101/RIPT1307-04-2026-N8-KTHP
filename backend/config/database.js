@@ -41,4 +41,53 @@ if (dialect === 'mysql') {
   });
 }
 
+
+const autoUpgradeDatabase = async () => {
+  try {
+   
+    let columnExists = false;
+
+    if (dialect === 'mysql') {
+      const [rows] = await sequelize.query(`
+        SELECT COUNT(*) AS count FROM information_schema.columns 
+        WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'reset_password_otp'
+      `);
+      columnExists = rows[0]?.count > 0;
+    } else {
+     
+      const [rows] = await sequelize.query(`PRAGMA table_info(users)`);
+      columnExists = rows.some(col => col.name === 'reset_password_otp');
+    }
+
+    if (!columnExists) {
+      console.log('🔄 Đang tự động thêm các cột phục vụ Quên mật khẩu vào bảng users...');
+      
+      if (dialect === 'mysql') {
+        await sequelize.query("ALTER TABLE users ADD COLUMN reset_password_otp VARCHAR(10) DEFAULT NULL AFTER role");
+        await sequelize.query("ALTER TABLE users ADD COLUMN reset_password_expires TIMESTAMP NULL DEFAULT NULL AFTER reset_password_otp");
+      } else {
+       
+        await sequelize.query("ALTER TABLE users ADD COLUMN reset_password_otp TEXT DEFAULT NULL");
+        await sequelize.query("ALTER TABLE users ADD COLUMN reset_password_expires TEXT DEFAULT NULL");
+      }
+      
+      console.log('💥 Cập nhật cấu trúc bảng users thành công!');
+    } else {
+      console.log('✅ Bảng users đã có sẵn cấu trúc Quên mật khẩu, bỏ qua nâng cấp.');
+    }
+  } catch (error) {
+    console.error('❌ Lỗi khi tự động nâng cấp cấu trúc Database:', error);
+  }
+};
+
+sequelize.authenticate()
+  .then(() => {
+    console.log('📬 Kết nối CSDL thành công. Đang kiểm tra cấu trúc bảng...');
+    return autoUpgradeDatabase();
+  })
+  .catch(err => {
+    console.error('❌ Lỗi kết nối CSDL khi khởi tạo:', err);
+  });
+
+
 module.exports = sequelize;
