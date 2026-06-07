@@ -5,7 +5,7 @@ const { listBorrowed } = require('../controllers/adminBorrowController');
 
 const router = express.Router();
 
-router.post('/emails/borrow-warning', authMiddleware, sendBorrowWarning);
+router.post('/borrow-warning', authMiddleware, sendBorrowWarning);
 router.get('/borrowed', authMiddleware, listBorrowed);
 
 module.exports = router;
