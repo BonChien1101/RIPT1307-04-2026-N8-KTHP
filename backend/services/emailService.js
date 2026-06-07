@@ -10,7 +10,7 @@ const isEmailEnabled = () => {
 };
 
 const getTransporter = async () => {
-    //  Cách này tối ưu nhất cho Gmail trên Cloud
+  
     if (process.env.SMTP_SERVICE) {
         return nodemailer.createTransport({
             service: process.env.SMTP_SERVICE, // 'gmail'
@@ -18,22 +18,28 @@ const getTransporter = async () => {
                 user: process.env.SMTP_USER,
                 pass: process.env.SMTP_PASS,
             },
+            connectionTimeout: 15000,
+            socketTimeout: 15000,
         });
     }
 
+   
     if (process.env.SMTP_HOST) {
-        const port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587;
-        const secure = envBool(process.env.SMTP_SECURE);
         return nodemailer.createTransport({
             host: process.env.SMTP_HOST,
-            port,
-            secure,
+            port: 465,               
+            secure: true,               
             auth: process.env.SMTP_USER
                 ? {
                     user: process.env.SMTP_USER,
                     pass: process.env.SMTP_PASS,
                 }
                 : undefined,
+            tls: {
+                rejectUnauthorized: false, 
+            },
+            connectionTimeout: 15000,
+            socketTimeout: 15000,
         });
     }
 
@@ -62,17 +68,7 @@ const sendEmail = async ({ to, subject, html, text, meta }) => {
 		return { skipped: true };
 	}
 
-	// console.log('1. before transporter');
-
 	const transporter = await getTransporter();
-
-	// console.log('2. before verify');
-
-	// await transporter.verify();
-
-	// console.log('3. after verify');
-
-	// console.log('4. before send');
 
 	const info = await transporter.sendMail({
 		from: getFrom(),
