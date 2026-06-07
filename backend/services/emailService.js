@@ -10,37 +10,45 @@ const isEmailEnabled = () => {
 };
 
 const getTransporter = async () => {
-	// If user has configured SMTP, use it.
-	if (process.env.SMTP_HOST || process.env.SMTP_SERVICE) {
-		const port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined;
-		const secure = envBool(process.env.SMTP_SECURE);
-		return nodemailer.createTransport({
-			host: process.env.SMTP_HOST,
-			port,
-			secure,
-			service: process.env.SMTP_SERVICE,
-			auth: process.env.SMTP_USER
-				? {
-					user: process.env.SMTP_USER,
-					pass: process.env.SMTP_PASS,
-				}
-				: undefined,
-		});
-	}
+    //  Cách này tối ưu nhất cho Gmail trên Cloud
+    if (process.env.SMTP_SERVICE) {
+        return nodemailer.createTransport({
+            service: process.env.SMTP_SERVICE, // 'gmail'
+            auth: {
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASS,
+            },
+        });
+    }
 
-	// Dev fallback: Ethereal test SMTP (creates a temp inbox)
-	const account = await nodemailer.createTestAccount();
-	return nodemailer.createTransport({
-		host: account.smtp.host,
-		port: account.smtp.port,
-		secure: account.smtp.secure,
-		auth: {
-			user: account.user,
-			pass: account.pass,
-		},
-	});
+    if (process.env.SMTP_HOST) {
+        const port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587;
+        const secure = envBool(process.env.SMTP_SECURE);
+        return nodemailer.createTransport({
+            host: process.env.SMTP_HOST,
+            port,
+            secure,
+            auth: process.env.SMTP_USER
+                ? {
+                    user: process.env.SMTP_USER,
+                    pass: process.env.SMTP_PASS,
+                }
+                : undefined,
+        });
+    }
+
+    // Dev fallback: Ethereal test SMTP
+    const account = await nodemailer.createTestAccount();
+    return nodemailer.createTransport({
+        host: account.smtp.host,
+        port: account.smtp.port,
+        secure: account.smtp.secure,
+        auth: {
+            user: account.user,
+            pass: account.pass,
+        },
+    });
 };
-
 const getFrom = () => {
 	return process.env.EMAIL_FROM || process.env.SMTP_USER || 'no-reply@equipment.local';
 };
@@ -54,7 +62,8 @@ const sendEmail = async ({ to, subject, html, text, meta }) => {
 		return { skipped: true };
 	}
 
-	//console.log('1. before transporter');
+	// console.log('1. before transporter');
+
 
 	const transporter = await getTransporter();
 
